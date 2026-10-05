@@ -201,6 +201,11 @@ void scenarioTick() {
             }
         } else if (is("quests")) {
             questLogicTest();
+        } else if (is("oaks")) {
+            nearNode(NT_OAK);
+            g.player.pos.x += 3;
+            g.player.pos.z += 3;
+            g.camYaw = g.player.yaw = yawTo(g.player.pos, g.nodes[findNode(NT_OAK)].pos);
         } else if (is("forest")) {
             teleport(Vec3(120, 0, 120), -2.2f);
         } else if (is("quarry")) {

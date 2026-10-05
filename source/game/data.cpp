@@ -325,7 +325,7 @@ const QuestDef QUESTS[] = {
       "Help us rekindle it. Wren the carpenter can show you how to prepare kindling.", nullptr},
      {{QS_TALK, NPC_CARPENTER, 1, NPC_CARPENTER, "Speak with Wren the carpenter",
        {"Kindling? For the Hearth? About time someone asked!", "Take this old hatchet. Oaks grow just north of town.", nullptr, nullptr}},
-      {QS_GATHER, IT_OAK_LOG, 4, 0, "Chop Oak Logs", {nullptr, nullptr, nullptr, nullptr}},
+      {QS_GATHER, IT_OAK_LOG, 4, 0, "Chop Oak Logs (sparkling oaks, north)", {nullptr, nullptr, nullptr, nullptr}},
       {QS_CRAFT, IT_OAK_KINDLING, 1, NPC_CARPENTER, "Craft Oak Kindling at the workbench",
        {"Good, even cuts. You've got the knack.", "Now the grate - Torvald will need copper and tin from Copperhill.", nullptr, nullptr}}},
      3, 30, IT_WORN_SICKLE, 1, SK_CARPENTRY, 60, true},

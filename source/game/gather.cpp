@@ -57,8 +57,16 @@ void update(f32 dt) {
             if (n.sparkle < 0) {
                 n.sparkle = 1.6f + frand() * 2.0f;
                 const NodeDef *d = nodeDef(n.type);
-                if (distXZ(n.pos, g.player.pos) < 28 && skillLevel(d->skill) >= d->level && d->skill != SK_WOODCUTTING)
-                    fx::burst(n.pos + Vec3(0, 0.8f, 0), FX_SPARK, 3);
+                if (distXZ(n.pos, g.player.pos) < 28 && skillLevel(d->skill) >= d->level) {
+                    if (d->skill == SK_WOODCUTTING) {
+                        // trees: glints around the trunk so choppable ones stand out from scenery
+                        fx::burst(n.pos + Vec3(0, 1.3f, 0), FX_SPARK, 3);
+                        fx::burst(n.pos + Vec3(0, 2.4f, 0), FX_SPARK, 2);
+                        n.sparkle = 1.0f + frand() * 1.2f;
+                    } else {
+                        fx::burst(n.pos + Vec3(0, 0.8f, 0), FX_SPARK, 3);
+                    }
+                }
             }
         }
     }
