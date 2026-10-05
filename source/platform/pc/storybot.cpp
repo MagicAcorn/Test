@@ -465,8 +465,26 @@ void storyBotTick() {
         press(BTN_B, 15);
         return;
     }
-    if (g.mode == MODE_CRAFT) {   // always finish a synthesis once started
-        press(BTN_A, 30);
+    if (g.mode == MODE_CRAFT) {   // always finish a piece once started
+        int n = craft::forgeParts();
+        if (n == 0 || craft::synthesisDone()) {
+            press(BTN_A, 30);
+            return;
+        }
+        // work on the first part still below its zone
+        int want = -1;
+        for (int i = 0; i < n; i++) {
+            int v, lo, hi;
+            craft::forgePart(i, &v, &lo, &hi);
+            if (v < lo) { want = i; break; }
+        }
+        if (want < 0) { press(BTN_B, 30); return; }   // everything in its zone: finish
+        if (craft::forgeSelected() != want) { press(BTN_RIGHT, 8); return; }
+        int v, lo, hi;
+        craft::forgePart(want, &v, &lo, &hi);
+        int gap = lo - v;
+        int mid = (hi - lo) / 2;
+        press(gap > 38 + mid ? BTN_X : (gap > 22 ? BTN_A : BTN_Y), 36);
         return;
     }
     if (g.mode == MODE_DIALOGUE) {

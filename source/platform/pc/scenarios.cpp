@@ -246,9 +246,11 @@ void scenarioTick() {
         if (f == 20 || f == 90 || f == 160) g.pad.pressed |= BTN_A, g.pad.held |= BTN_A;
     }
     if (is("crafting")) {
-        if (f == 10) g.pad.pressed |= BTN_A;        // start synthesis
-        if (f == 40 || f == 100) g.pad.pressed |= BTN_X;   // touch
-        if (f == 160 || f == 220) g.pad.pressed |= BTN_A;  // synthesis
+        if (f == 10) g.pad.pressed |= BTN_A;                  // start
+        if (f == 40 || f == 80) g.pad.pressed |= BTN_X;       // heavy strikes on part 1
+        if (f == 120) g.pad.pressed |= BTN_RIGHT;
+        if (f == 140 || f == 180) g.pad.pressed |= BTN_A;     // strikes on part 2
+        if (f == 220) g.pad.pressed |= BTN_Y;                 // precise tap
     }
     if (is("combat") || is("magic") || is("barrow")) {
         if (f == 100) g.pad.pressed |= BTN_Z;

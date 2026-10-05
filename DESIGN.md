@@ -25,8 +25,8 @@ Levels run from 1 to 30 on a RuneScape-shaped XP curve. Tools and recipes unlock
 | Woodcutting, Mining, Fishing, Herbalism | Smithing, Cooking, Carpentry, Alchemy | Warrior, Mage |
 
 - **Gathering** works like FF14. Each node has an *integrity* (number of attempts), a success chance and HQ chance per item, and *GP abilities* (hold R) that raise yield or chance. Fishing is cast, wait, bite and hook, with time-of-day catches.
-- **Crafting** also works like FF14. Each synthesis tracks progress, quality, durability and CP, with random *conditions* and an *Inner Quiet* stack. There are 12 actions on the face buttons plus L/R sets. High-quality results sell for more and fill work orders.
-- **Combat** uses a cross hotbar. Z targets an enemy and A/X/Y run the weaponskill combo. R and L give a second job skill set and consumables, and B dodges. Enemies telegraph area attacks on the ground. Warrior and Mage are separate jobs you can swap between.
+- **Crafting** is a forge minigame like Dragon Quest XI's Fun-Sized Forge. An item is a row of 2–6 parts, each with a gauge and a target zone. Techniques (hit, heavy hit, precise tap, sweep, inspire, cool) each cost focus and can crit. Landing parts in their zones raises the score, which decides HQ and XP. Each skill names its techniques its own way (Strike/Sear/Sand/Infuse…).
+- **Combat** is action combat built for the GameCube pad. B runs a 3-hit combo with auto-aim, X rolls (or Blinks for mages), L guards, Y uses a quick item and A jumps. Holding R opens a skill wheel in slow motion: tilt the stick at a skill and release R to use it. Enemies telegraph area attacks on the ground. Warrior and Mage are separate jobs you can swap between.
 
 ## The world
 The world is a 384×384 m vale with a day/night cycle (one in-game hour per real minute):

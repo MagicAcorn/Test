@@ -32,7 +32,7 @@ Saving works in two ways. The game autosaves when you complete a quest or rest a
 | D-pad up/down | Camera zoom |
 | START | Menu (bag, gear, skills, quests, map, system) |
 
-Crafting puts every action on the face buttons. Hold L or R for more actions. As in FF14, you balance progress, quality, durability and CP.
+**Crafting** is a forge minigame in the spirit of Dragon Quest XI. Each item is a row of parts, and every part has a gold target zone. Pick a part with the stick, then hit it: **A** is a normal hit, **X** a heavy hit and **Y** a precise tap. Hold **R** for special techniques: hit all parts, inspire the next hit, or cool a part down. Every move costs focus. Press **B** to finish; landing every part in its zone makes a masterwork (HQ).
 
 ## Building
 

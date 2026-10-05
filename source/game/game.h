@@ -206,6 +206,9 @@ void update(f32 dt);
 void drawUi();
 int selectedRecipe();   // recipe under the cursor in the select list, -1 otherwise
 bool synthesisDone();
+int forgeParts();          // >0 while the forge minigame is running
+int forgeSelected();
+void forgePart(int i, int *val, int *lo, int *hi);
 }
 namespace npcs {
 void init();
