@@ -50,6 +50,7 @@ public:
 
     // collision: pushes a circle out of objects; returns true if blocked
     bool resolveCircle(Vec3 &p, f32 radius) const;
+    bool insideObject(const Vec3 &p, f32 pad) const;
     bool walkable(f32 x, f32 z, f32 fromY) const;
     bool lineOfSight(const Vec3 &a, const Vec3 &b) const;
 

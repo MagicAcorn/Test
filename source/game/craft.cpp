@@ -231,6 +231,9 @@ void exitToPlay() {
 }
 }  // namespace
 
+int selectedRecipe() { return (g.mode == MODE_CRAFT_SELECT && s_count) ? s_list[s_sel] : -1; }
+bool synthesisDone() { return s_done; }
+
 void openStation(int st) {
     int sk = stationSkill(st);
     if (sk < 0) return;

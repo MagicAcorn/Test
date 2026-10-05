@@ -168,6 +168,34 @@ f32 World::groundHeight(f32 x, f32 z, f32 refY) const {
     return h;
 }
 
+// True if p lies inside the collision volume of a solid object (box or
+// cylinder footprint up to the model's top), grown by `pad`.
+bool World::insideObject(const Vec3 &p, f32 pad) const {
+    f32 gc = gridCell();
+    int gx = (int)(p.x / gc), gz = (int)(p.z / gc);
+    for (int cz = gz - 1; cz <= gz + 1; cz++)
+        for (int cx = gx - 1; cx <= gx + 1; cx++) {
+            int n;
+            const u16 *items = gridItems(cx, cz, &n);
+            for (int k = 0; k < n; k++) {
+                const WorldObject &o = m_objects[items[k]];
+                if (!o.colType || !o.model) continue;
+                f32 top = o.pos.y + o.model->bmax.y * o.scale;
+                if (p.y > top + pad || p.y < o.pos.y - 1.0f) continue;
+                f32 dx = p.x - o.pos.x, dz = p.z - o.pos.z;
+                if (o.colType == 1) {
+                    f32 r = o.ca + pad;
+                    if (dx * dx + dz * dz < r * r) return true;
+                } else {
+                    f32 lx = dx * o.cosY - dz * o.sinY;
+                    f32 lz = dx * o.sinY + dz * o.cosY;
+                    if (fabsf(lx) < o.ca + pad && fabsf(lz) < o.cb + pad) return true;
+                }
+            }
+        }
+    return false;
+}
+
 bool World::resolveCircle(Vec3 &p, f32 radius) const {
     bool hit = false;
     f32 gc = gridCell();

@@ -258,6 +258,22 @@ static void updateCamera(f32 dt, bool userControl) {
         tgt.y = hvMax(tgt.y, p.pos.y + look);
         g.camYaw = atan2f(tgt.x - eye.x, tgt.z - eye.z);   // resume normal play from this angle
     }
+    // pull the camera in front of buildings and trees between it and the player
+    {
+        Vec3 d = eye - tgt;
+        f32 len = d.len();
+        f32 keep = len;
+        for (f32 t = 1.2f; t < len; t += 0.5f) {
+            if (g_world.insideObject(tgt + d * (t / len), 0.35f)) {
+                keep = hvMax(1.5f, t - 0.5f);
+                break;
+            }
+        }
+        static f32 s_camKeep = 100.0f;   // smooth: snap in fast, ease back out
+        if (keep < s_camKeep) s_camKeep = keep;
+        else s_camKeep = hvMin(keep, s_camKeep + dt * 6.0f);
+        if (s_camKeep < len) eye = tgt + d * (s_camKeep / len);
+    }
     f32 gy = g_world.groundHeight(eye.x, eye.z) + 0.8f;
     if (eye.y < gy) eye.y = gy;
     if (eye.y < g_world.waterLevel() + 0.6f) eye.y = g_world.waterLevel() + 0.6f;
@@ -275,6 +291,17 @@ static void updateCamera(f32 dt, bool userControl) {
 }
 
 // ------------------------------------------------------- player control
+// Pick what A would use: the closest thing, weighted toward what the player
+// faces, with people slightly favoured over the stations they stand at.
+static f32 interactScore(const Vec3 &target, f32 bias) {
+    const Actor &p = g.player;
+    Vec3 d = target - p.pos;
+    d.y = 0;
+    f32 dist = d.lenXZ();
+    f32 facing = dist > 0.01f ? (d.x * sinf(p.yaw) + d.z * cosf(p.yaw)) / dist : 1.0f;
+    return dist + (1.0f - facing) * 1.6f + bias;
+}
+
 static void updateInteraction() {
     Actor &p = g.player;
     g.interact = Game::IK_NONE;
@@ -284,11 +311,11 @@ static void updateInteraction() {
     if (npc >= 0) {
         g.interact = Game::IK_NPC;
         g.interactIndex = npc;
-        best = distXZ(g.actors[npc].pos, p.pos);
+        best = interactScore(g.actors[npc].pos, -1.0f);
     }
     int node = nodes::nearest(p.pos, 3.8f, false);
     if (node >= 0) {
-        f32 d = distXZ(g.nodes[node].pos, p.pos);
+        f32 d = interactScore(g.nodes[node].pos, 0);
         if (d < best) {
             best = d;
             g.interact = g.nodes[node].fishing ? Game::IK_FISH : Game::IK_NODE;
@@ -296,8 +323,9 @@ static void updateInteraction() {
         }
     }
     for (int i = 0; i < g.numStations; i++) {
-        f32 d = distXZ(g.stations[i].pos, p.pos);
-        if (d < g.stations[i].radius && d < best) {
+        if (distXZ(g.stations[i].pos, p.pos) >= g.stations[i].radius) continue;
+        f32 d = interactScore(g.stations[i].pos, 0);
+        if (d < best) {
             best = d;
             g.interact = Game::IK_STATION;
             g.interactIndex = i;
@@ -663,8 +691,17 @@ void gameFrame() {
     g.cam.update(ui::aspect());
     GX_SetCopyClear(gfx::env().fogColor, 0x00FFFFFF);
     gfx::beginScene(g.cam);
+#ifdef HV_PC
+    // HV_FAST: the harness skips drawing frames nobody looks at (long bot runs)
+    static bool fast = getenv("HV_FAST") != nullptr;
+    if (!fast || plat::wantsFrameRendered()) {
+        drawWorld();
+        drawUi();
+    }
+#else
     drawWorld();
     drawUi();
+#endif
     plat::endFrame();
 }
 

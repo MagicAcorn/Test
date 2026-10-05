@@ -195,6 +195,7 @@ void updateFishing(f32 dt);
 void drawFishingUi();
 void drawWorld();
 int currentNode();
+int fishState();   // 0 ready, 1 cast, 2 wait, 3 bite, 4 reel, 5 result
 }
 namespace craft {
 void openStation(int stationType);
@@ -202,6 +203,8 @@ void updateSelect(f32 dt);
 void drawSelectUi();
 void update(f32 dt);
 void drawUi();
+int selectedRecipe();   // recipe under the cursor in the select list, -1 otherwise
+bool synthesisDone();
 }
 namespace npcs {
 void init();

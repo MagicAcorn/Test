@@ -198,7 +198,7 @@ class World:
         self.roads = [
             catmull([TOWN + (0, -26), (200, 140), (175, 110), (130, 112), (100, 112)], 10),     # to Whisperwood
             catmull([TOWN + (26, 0), (250, 196), (275, 196), (300, 198)], 10),                  # to Copperhill (bridge)
-            catmull([TOWN + (18, -18), (232, 150), (262, 112), (290, 86)], 10),                 # to Barrow (crosses river)
+            catmull([TOWN + (18, -18), (232, 150), (262, 112), (279, 97)], 10),                 # to Barrow (crosses river)
             catmull([TOWN + (-22, 14), (160, 220), (125, 240), (100, 252)], 10),                # to Farmland
             catmull([TOWN + (-6, 26), (190, 245), (175, 275), (165, 292)], 10),                 # to Mirror Lake
         ]
@@ -321,6 +321,69 @@ class World:
             y = self.height_at(x, z)
         self.markers.append((kind, ident, x, y, z, yaw, radius, extra))
 
+    def ramp_bridge_ends(self):
+        """Raise the banks into gentle ramps up to each bridge deck so both
+        ends can be walked onto (the player can only step up 1.6 m)."""
+        xs = np.arange(N) * CELL
+        X, Z = np.meshgrid(xs, xs)
+        for (bx, bz, hl, hw, by, arch) in self.bridges:
+            for sgn in (-1.0, 1.0):
+                ex = bx + sgn * hl
+                d = (X - ex) * sgn                       # distance outward from the deck end
+                along = np.clip(1.0 - d / 9.0, 0.0, 1.0) * (d >= -0.5)
+                lat = np.clip((hw + 3.0 - np.abs(Z - bz)) / 3.0, 0.0, 1.0)
+                w = along * lat
+                target = by - 0.15 - np.clip(d, 0, None) * 0.22
+                self.H = np.where(w > 0, np.maximum(self.H, self.H * (1 - w) + target * w), self.H)
+
+    def blocked_at(self, x, z, margin=0.6):
+        """Models whose collision covers (x, z) (same box convention as World::resolveCircle)."""
+        hits = []
+        for (model, ox, oy, oz, yaw, sc, ct, ca, cb, fl) in self.objects:
+            dx, dz = x - ox, z - oz
+            if ct == 1:
+                if dx * dx + dz * dz < (ca + margin) ** 2:
+                    hits.append(model)
+            elif ct == 2:
+                c, s_ = math.cos(yaw), math.sin(yaw)
+                lx = dx * c - dz * s_
+                lz = dx * s_ + dz * c
+                if abs(lx) < ca + margin and abs(lz) < cb + margin:
+                    hits.append(model)
+        return hits
+
+    def check_roads(self):
+        """Every road (and each bridge deck) must stay walkable: report blockers."""
+        problems = 0
+        for ri, road in enumerate(self.roads):
+            for k in range(1, len(road)):
+                a, b = road[k - 1], road[k]
+                n = max(1, int(np.hypot(*(b - a))))
+                for j in range(n):
+                    p = a + (b - a) * (j / n)
+                    hits = self.blocked_at(p[0], p[1])
+                    if hits:
+                        problems += 1
+                        if problems <= 25:
+                            print('  !! road %d blocked at (%.0f, %.0f) by %s' % (ri, p[0], p[1], ','.join(sorted(set(hits)))))
+        for (bx, bz, hl, hw, by, arch) in self.bridges:
+            for x in np.arange(bx - hl - 3, bx + hl + 3, 1.0):
+                hits = self.blocked_at(x, bz)
+                if hits:
+                    problems += 1
+                    print('  !! bridge at (%.0f, %.0f) blocked at x=%.0f by %s' % (bx, bz, x, ','.join(sorted(set(hits)))))
+        names = {MK_NPC: 'npc', MK_STATION: 'station', MK_NODE: 'node', MK_PLAYER: 'player start'}
+        for (kind, ident, x, y, z, yaw, radius, extra) in self.markers:
+            if kind not in names:
+                continue
+            hits = [h for h in self.blocked_at(x, z, margin=0.0) if not h.startswith('pr/')]
+            if hits:
+                problems += 1
+                print('  !! %s %d at (%.0f, %.0f) is inside %s' % (names[kind], ident, x, z, ','.join(sorted(set(hits)))))
+        if problems:
+            print('  !! %d blocked road samples' % problems)
+        return problems
+
     def free(self, x, z, r):
         """True if no object within r (cheap linear check)."""
         for o in self.objects:
@@ -368,17 +431,17 @@ class World:
             self.place('hw/bench', x, z, -a + math.pi / 2, 1.0, ('b', 1.0, 0.4))
         # buildings: (model, angle around plaza, distance, scale, collision half extents)
         B = [
-            ('hx/tavern', -90, 34, 8.0, (5.5, 5.0)),
-            ('hx/blacksmith', 0, 33, 8.0, (5.2, 5.0)),
+            ('hx/tavern', -113, 35, 8.0, (5.5, 5.0)),
+            ('hx/blacksmith', 25, 34, 8.0, (5.2, 5.0)),
             ('hx/church', -150, 36, 8.0, (5.0, 4.5)),
-            ('hx/market', 150, 33, 8.0, (5.0, 5.0)),
+            ('hx/market', 125, 34, 8.0, (5.0, 5.0)),
             ('hx/home_a', -35, 38, 8.0, (3.3, 3.5)),
-            ('hx/home_b', -120, 40, 8.0, (3.6, 3.6)),
-            ('hx/home_a', 115, 38, 8.0, (3.3, 3.5)),
-            ('hx/home_b', 60, 37, 8.0, (3.6, 3.6)),
+            ('hx/home_b', -138, 43, 8.0, (3.6, 3.6)),
+            ('hx/home_a', 84, 39, 8.0, (3.3, 3.5)),
+            ('hx/home_b', -66, 43, 8.0, (3.6, 3.6)),
             ('hx/home_a', -180, 36, 8.0, (3.3, 3.5)),
             ('hx/well', -60, 21, 6.0, (1.4, 1.4)),
-            ('hx/tower_a', 35, 44, 7.0, (3.0, 3.0)),
+            ('hx/tower_a', 45, 46, 7.0, (3.0, 3.0)),
         ]
         self.buildings = {}
         for model, ang, dist, s, (hx, hz) in B:
@@ -441,7 +504,7 @@ class World:
         self.marker(MK_NPC, NPC['merchant'], mx, mz + 2, yaw=math.pi)
         self.marker(MK_NPC, NPC['captain'], tx + 12, tz - 26, yaw=-0.5)
         self.marker(MK_NPC, NPC['bard'], tx + 9, tz + 9, yaw=-2.3)
-        self.marker(MK_NPC, NPC['priest'], tx - 30, tz - 20, yaw=0.4)
+        self.marker(MK_NPC, NPC['priest'], tx - 23, tz - 13, yaw=0.9)
         self.marker(MK_NPC, NPC['child'], tx + 3, tz + 14, yaw=1.0)
         # bridge east of town over the river
         self.bridges = []
@@ -449,6 +512,7 @@ class World:
             by = max(self.height_at(bx - 12, bz), self.height_at(bx + 12, bz)) + 0.1
             self.place('hx/bridge_a', bx, bz, yaw, 8.0, None, y=by - BRIDGE_DECK)
             self.bridges.append((bx, bz, 11.0, 4.0, by, 1.1))
+        self.ramp_bridge_ends()
         # lumbermill + workbench by the river south of the bridge
         lx, lz = 228.0, 228.0
         self.place('hx/lumbermill', lx, lz, math.pi * 0.5, 8.0, ('b', 4.5, 4.0), shadow=6)
@@ -804,6 +868,7 @@ def generate():
     w.gather_nodes()
     w.scatter_meadow()
     w.spawns()
+    w.check_roads()
     return w
 
 

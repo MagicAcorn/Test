@@ -397,6 +397,7 @@ int f_spot = -1;
 u16 f_caught;
 }  // namespace
 
+int fishState() { return (int)f_state; }
 int currentNode() { return g.mode == MODE_FISH ? f_spot : s_node; }
 
 void beginFishing(int node) {

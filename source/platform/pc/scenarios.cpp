@@ -93,6 +93,8 @@ void questLogicTest() {
 }
 }  // namespace
 
+void storyBotTick();
+
 void scenarioTick() {
     if (!s_name) {
         s_name = getenv("HV_SCENARIO");
@@ -179,6 +181,22 @@ void scenarioTick() {
             startHearthCutscene();
         } else if (is("title")) {
             g.mode = MODE_TITLE;
+        } else if (is("probe")) {
+            for (f32 z = 196; z <= 196; z += 4)
+                for (f32 x = 228; x <= 262; x += 1) {
+                    f32 gh = g_world.groundHeight(x, z);
+                    Vec3 c(x, gh, z);
+                    bool blocked = g_world.resolveCircle(c, 0.4f);
+                    printf("[probe] x %.0f z %.0f h %.2f water %d walk %d obj %d\n", x, z, gh, g_world.isWater(x, z),
+                           g_world.walkable(x + 1, z, gh), blocked);
+                }
+        } else if (is("probe2")) {
+            for (int i = 0; i < g_world.numObjects(); i++) {
+                const WorldObject &o = g_world.object(i);
+                if (!o.colType || distXZ(o.pos, Vec3(232, 0, 196)) > 30) continue;
+                printf("[probe] obj %d model %08x pos (%.1f,%.1f) col %d a %.1f b %.1f yaw %.2f\n", i, o.model ? o.model->hash : 0, o.pos.x, o.pos.z,
+                       o.colType, o.ca, o.cb, o.yaw);
+            }
         } else if (is("quests")) {
             questLogicTest();
         } else if (is("forest")) {
@@ -193,6 +211,10 @@ void scenarioTick() {
             g.camPitch = 0.42f;
             g.camDist = 13;
         }
+    }
+    if (is("story")) {
+        storyBotTick();
+        return;
     }
     // drive actions on later frames
     if (is("gather") || is("mine")) {
