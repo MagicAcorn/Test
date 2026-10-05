@@ -840,7 +840,7 @@ class World:
     def spawns(self):
         # meadow slimes near town / roads
         for c, kind, n in (((160, 170), 'slime_green', 4), ((240, 160), 'slime_green', 3), ((150, 240), 'slime_green', 4),
-                           ((120, 300), 'slime_blue', 4), ((190, 330), 'slime_blue', 3), ((290, 260), 'slime_red', 3),
+                           ((105, 285), 'slime_blue', 4), ((205, 345), 'slime_blue', 3), ((290, 260), 'slime_red', 3),
                            ((280, 140), 'slime_purple', 3), ((60, 180), 'slime_green', 3)):
             self.marker(MK_SPAWN, SPAWN[kind], c[0], c[1], radius=14, extra=n)
         self.marker(MK_SPAWN, SPAWN['slime_gold'], 70.0, 320.0, radius=8, extra=1)

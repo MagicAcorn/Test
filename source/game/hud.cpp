@@ -152,6 +152,11 @@ void interactPrompt() {
 }
 
 void bubbles() {
+    // world text only while exploring; plates that would overlap are dropped
+    if (g.mode != MODE_PLAY) return;
+    struct Box { f32 x0, y0, x1, y1; };
+    Box drawn[24];
+    int nd = 0;
     for (int i = 0; i < MAX_ACTORS; i++) {
         Actor &a = g.actors[i];
         if (!a.active) continue;
@@ -176,7 +181,15 @@ void bubbles() {
             if (a.kind == AK_ADVENTURER) snprintf(b, sizeof(b), "%s  Lv%d", a.name, a.level);
             else snprintf(b, sizeof(b), "%s", a.name);
             GXColor c = a.kind == AK_ADVENTURER ? ui::rgba(140, 200, 255) : ui::rgba(255, 240, 200);
-            ui::text(FONT_SMALL, s.x, s.y - 4, b, c, AL_CENTER);
+            f32 tw = ui::textWidth(FONT_SMALL, b);
+            Box bx = {s.x - tw * 0.5f - 4, s.y - 6, s.x + tw * 0.5f + 4, s.y + 16};
+            bool clash = false;
+            for (int k = 0; k < nd && !clash; k++)
+                clash = bx.x0 < drawn[k].x1 && bx.x1 > drawn[k].x0 && bx.y0 < drawn[k].y1 && bx.y1 > drawn[k].y0;
+            if (!clash) {
+                ui::text(FONT_SMALL, s.x, s.y - 4, b, c, AL_CENTER);
+                if (nd < 24) drawn[nd++] = bx;
+            }
         }
         if (a.chatTimer > 0 && d < 28) {
             f32 tw = hvMin(ui::textWidth(FONT_SMALL, a.chat) + 20, 220.0f);
@@ -215,9 +228,9 @@ void banner() {
         ui::text(FONT_BIG, W() * 0.5f, cy - 6, g.banner, ui::rgba(255, 220, 130, (u8)(255 * a)), AL_CENTER);
         if (g.bannerSub[0]) ui::text(FONT_UI, W() * 0.5f, cy + 34, g.bannerSub, ui::rgba(255, 255, 255, (u8)(255 * a)), AL_CENTER);
     }
-    if (g.regionTimer > 0 && g.bannerTimer <= 0 && g.mode == MODE_PLAY) {
+    if (g.regionTimer > 0 && g.bannerTimer <= 0 && g.mode == MODE_PLAY && !combat::inCombat()) {
         f32 a = hvSaturate(g.regionTimer) * hvSaturate((3.5f - g.regionTimer) * 2);
-        ui::text(FONT_BIG, W() * 0.5f, H() * 0.66f, g.regionName, ui::rgba(255, 250, 235, (u8)(240 * a)), AL_CENTER, 0.85f);
+        ui::text(FONT_BIG, W() * 0.5f, H() * 0.22f, g.regionName, ui::rgba(255, 250, 235, (u8)(240 * a)), AL_CENTER, 0.85f);
     }
     if (g.saveMsgTimer > 0) ui::text(FONT_SMALL, W() - 20, H() - 30, g.saveMsg, ui::rgba(255, 255, 255, (u8)(hvSaturate(g.saveMsgTimer) * 255)), AL_RIGHT);
 }
@@ -500,7 +513,10 @@ void updateMenu(f32 dt) {
                     if (heals && g.player.hp >= g.player.maxHp) { toast("You're already at full health.", ui::TEXT_DIM); break; }
                     g.cooldowns[7] = 4.0f;
                     if (sl.item == IT_SUNPETAL_DRAUGHT) g.buffDamage = 60;
-                    else if (sl.item == IT_SAGE_TONIC) { g.player.mp = hvMin(g.player.maxMp, g.player.mp + 150); g.gp = hvMin(g.maxGp, g.gp + 150); }
+                    else if (sl.item == IT_MINT_TEA) {
+                        g.player.hp = hvMin(g.player.maxHp, g.player.hp + d.power * (sl.hq ? 11 : 10) / 10);
+                        g.gp = hvMin(g.maxGp, g.gp + 150);
+                    } else if (sl.item == IT_SAGE_TONIC) { g.player.mp = hvMin(g.player.maxMp, g.player.mp + 150); g.gp = hvMin(g.maxGp, g.gp + 150); }
                     else g.player.hp = hvMin(g.player.maxHp, g.player.hp + d.power * (sl.hq ? 11 : 10) / 10);
                     char b[64];
                     snprintf(b, sizeof(b), "Used %s", d.name);

@@ -348,24 +348,23 @@ static const u32 CARD_HDR = 64;
 static const char kCardTitle[32] = "Hearthvale";
 static const char kCardDesc[32] = "Adventure in the Vale";
 
-static bool cardWrite(const void *data, u32 size) {
-    if (!cardMount()) return false;
+static const char *kBackupName = "hearthvale.bak";
+
+// Writes one card file (mounted card), creating or growing it as needed.
+static bool cardWriteFile(const char *name, const void *data, u32 size, bool allowRecreate) {
     u32 sector = 8192;
     CARD_GetSectorSize(CARD_SLOTA, &sector);
     u32 total = (size + CARD_HDR + sector - 1) / sector * sector;
     card_file f;
-    s32 r = CARD_Open(CARD_SLOTA, kSaveName, &f);
+    s32 r = CARD_Open(CARD_SLOTA, name, &f);
     if (r >= 0 && (u32)f.len < total) {
-        // the save outgrew its file: make a bigger one
         CARD_Close(&f);
-        CARD_Delete(CARD_SLOTA, kSaveName);
+        if (!allowRecreate) return false;
+        CARD_Delete(CARD_SLOTA, name);
         r = CARD_ERROR_NOFILE;
     }
-    if (r == CARD_ERROR_NOFILE) r = CARD_Create(CARD_SLOTA, kSaveName, total, &f);
-    if (r < 0) {
-        CARD_Unmount(CARD_SLOTA);
-        return false;
-    }
+    if (r == CARD_ERROR_NOFILE) r = CARD_Create(CARD_SLOTA, name, total, &f);
+    if (r < 0) return false;
     u8 *buf = (u8 *)memalign(32, total);
     memset(buf, 0, total);
     memcpy(buf, kCardTitle, 32);
@@ -383,17 +382,25 @@ static bool cardWrite(const void *data, u32 size) {
         }
     }
     CARD_Close(&f);
-    CARD_Unmount(CARD_SLOTA);
     return r >= 0;
 }
 
-static s32 cardRead(void *data, u32 maxSize) {
-    if (!cardMount()) return -1;
-    card_file f;
-    if (CARD_Open(CARD_SLOTA, kSaveName, &f) < 0) {
-        CARD_Unmount(CARD_SLOTA);
-        return -1;
+static bool cardWrite(const void *data, u32 size) {
+    if (!cardMount()) return false;
+    bool ok = cardWriteFile(kSaveName, data, size, false);
+    if (!ok) {
+        // the save outgrew its file: keep a full copy in a backup file before
+        // the main one is deleted and recreated, so a power cut can't lose it
+        if (cardWriteFile(kBackupName, data, size, true)) ok = cardWriteFile(kSaveName, data, size, true);
+        if (ok) CARD_Delete(CARD_SLOTA, kBackupName);
     }
+    CARD_Unmount(CARD_SLOTA);
+    return ok;
+}
+
+static s32 cardReadFile(const char *name, void *data, u32 maxSize) {
+    card_file f;
+    if (CARD_Open(CARD_SLOTA, name, &f) < 0) return -1;
     u32 total = (u32)f.len;
     u8 *buf = (u8 *)memalign(32, total);
     s32 r = CARD_Read(&f, buf, total, 0);
@@ -406,6 +413,13 @@ static s32 cardRead(void *data, u32 maxSize) {
     }
     free(buf);
     CARD_Close(&f);
+    return n;
+}
+
+static s32 cardRead(void *data, u32 maxSize) {
+    if (!cardMount()) return -1;
+    s32 n = cardReadFile(kSaveName, data, maxSize);
+    if (n < 0) n = cardReadFile(kBackupName, data, maxSize);
     CARD_Unmount(CARD_SLOTA);
     return n;
 }
@@ -415,6 +429,10 @@ static bool cardExists() {
     card_file f;
     bool ok = CARD_Open(CARD_SLOTA, kSaveName, &f) >= 0;
     if (ok) CARD_Close(&f);
+    else if (CARD_Open(CARD_SLOTA, kBackupName, &f) >= 0) {
+        CARD_Close(&f);
+        ok = true;
+    }
     CARD_Unmount(CARD_SLOTA);
     return ok;
 }

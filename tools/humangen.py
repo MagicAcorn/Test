@@ -294,10 +294,12 @@ def build_person(rig, spec):
     p.ellipsoid([0, hy - 0.005, 0.135], (0.026, 0.034, 0.03), shade(sk, 1.02), H, rows=5, cols=8)         # nose
     for s in (1, -1):
         p.ellipsoid([s * 0.123, hy - 0.01, 0.0], (0.022, 0.04, 0.028), shade(sk, 0.92), H, rows=4, cols=8)       # ears
-        p.ellipsoid([s * 0.047, hy + 0.03, 0.118], (0.025, 0.029, 0.012), (250, 248, 244), H, rows=4, cols=8)   # eye whites
-        p.ellipsoid([s * 0.047, hy + 0.028, 0.128], (0.014, 0.018, 0.006), (40, 54, 70), H, rows=3, cols=6)    # pupils
-        p.ellipsoid([s * 0.05, hy + 0.068, 0.118], (0.034, 0.011, 0.014), shade(hc, 0.85), H, rows=3, cols=8)  # brows
-    p.ellipsoid([0, hy - 0.072, 0.118], (0.035, 0.008, 0.008), shade(sk, 0.62), H, rows=3, cols=8)          # mouth
+        # big, readable stylised eyes: they have to survive a third-person camera
+        p.ellipsoid([s * 0.05, hy + 0.028, 0.119], (0.031, 0.037, 0.016), (250, 248, 244), H, rows=5, cols=8)   # eye whites
+        p.ellipsoid([s * 0.048, hy + 0.024, 0.132], (0.019, 0.025, 0.008), (34, 40, 54), H, rows=4, cols=8)     # pupils
+        p.ellipsoid([s * 0.042, hy + 0.036, 0.139], (0.006, 0.007, 0.003), (255, 255, 255), H, rows=3, cols=5)  # glint
+        p.ellipsoid([s * 0.054, hy + 0.074, 0.12], (0.04, 0.013, 0.016), shade(hc, 0.7), H, rows=3, cols=8)    # brows
+    p.ellipsoid([0, hy - 0.07, 0.12], (0.04, 0.01, 0.01), shade(sk, 0.55), H, rows=3, cols=8)               # mouth
     style = spec.get('hair_style', 'short')
     if style != 'bald':
         p.ellipsoid([0, hy + 0.05, -0.012], (0.138, 0.13, 0.15), hc, H, rows=7, cols=14, grad=(0.75, 1.1))

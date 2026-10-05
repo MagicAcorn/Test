@@ -234,7 +234,8 @@ static void updateCamera(f32 dt, bool userControl) {
         int n = gather::currentNode();
         if (n >= 0) {
             focus = g.nodes[n].pos;
-            back = 5.2f, side = 1.6f, up = 2.6f, toward = 0.3f, look = 1.2f;
+            // the gather panel sits on the right: keep player and node to the left
+            back = 5.2f, side = 1.6f, up = 2.6f, toward = 0.3f, look = 1.2f, shift = g.mode == MODE_GATHER ? -2.0f : 0.0f;
             framed = true;
         }
     } else if (g.mode == MODE_CRAFT || g.mode == MODE_CRAFT_SELECT) {
@@ -243,7 +244,7 @@ static void updateCamera(f32 dt, bool userControl) {
                 focus = g.stations[i].pos;
                 // low and close, with player and station pushed to the side of the
                 // frame the forge panel leaves clear
-                back = 3.6f, side = 2.6f, up = 2.3f, toward = 0.6f, look = 0.9f, shift = 2.2f;
+                back = 3.6f, side = 2.6f, up = 2.3f, toward = 0.6f, look = 0.9f, shift = 1.7f;
                 framed = true;
             }
     }
@@ -253,12 +254,37 @@ static void updateCamera(f32 dt, bool userControl) {
         f32 len = d.lenXZ();
         d = len > 0.01f ? d * (1.0f / len) : Vec3(sinf(p.yaw), 0, cosf(p.yaw));
         Vec3 right(d.z, 0, -d.x);
-        // stay on whichever side the camera already is, so it never swings through the player
+        // stay on whichever side the camera already is, so it never swings through
+        // the player -- unless a wall or cliff blocks that side and the other is clear
         f32 sgn = dot(g.cam.eye - p.pos, right) >= 0 ? 1.0f : -1.0f;
-        eye = p.pos - d * back + right * (side * sgn) + Vec3(0, up, 0);
         tgt = lerp(p.pos, focus, toward) + Vec3(0, look, 0);
         tgt.y = hvMax(tgt.y, p.pos.y + look);
-        tgt = tgt + right * (shift * sgn);
+        auto clear = [&](const Vec3 &e) {
+            Vec3 v = e - tgt;
+            f32 l = v.len();
+            for (f32 t = 1.2f; t < l; t += 0.5f)
+                if (g_world.insideObject(tgt + v * (t / l), 0.4f)) return t;
+            return l;
+        };
+        Vec3 eA = p.pos - d * back + right * (side * sgn) + Vec3(0, up, 0);
+        Vec3 eB = p.pos - d * back - right * (side * sgn) + Vec3(0, up, 0);
+        static f32 s_swapHold = 0;
+        s_swapHold -= dt;
+        f32 ca = clear(eA), cb = clear(eB);
+        if (s_swapHold <= 0 && ca < (eA - tgt).len() - 0.5f && cb > ca + 1.5f) {
+            sgn = -sgn;
+            eA = eB;
+            s_swapHold = 1.5f;
+            g.cam.eye = eA;   // cut rather than sweep through the player
+        }
+        eye = eA;
+        // push the subject to one side of the frame, clear of the activity panel
+        // (shift > 0: subject on the right of the screen)
+        Vec3 fw = tgt - eye;
+        fw.y = 0;
+        fw = normalize(fw);
+        Vec3 scrRight(-fw.z, 0, fw.x);
+        tgt = tgt - scrRight * shift;
         g.camYaw = atan2f(tgt.x - eye.x, tgt.z - eye.z);   // resume normal play from this angle
     }
     // pull the camera in front of buildings and trees between it and the player
@@ -268,15 +294,19 @@ static void updateCamera(f32 dt, bool userControl) {
         f32 keep = len;
         for (f32 t = 1.2f; t < len + 0.25f; t += 0.5f) {
             // more clearance towards the lens so walls and eaves don't fill the frame
-            if (g_world.insideObject(tgt + d * (hvMin(t, len) / len), 0.35f + 0.9f * hvMin(t, len) / len)) {
-                keep = hvMax(1.5f, t - 0.5f);
+            if (g_world.insideObject(tgt + d * (hvMin(t, len) / len), 0.35f + 0.6f * hvMin(t, len) / len)) {
+                // never so close that the player fills the screen
+                keep = hvMax(framed ? 3.2f : 2.6f, t - 0.5f);
                 break;
             }
         }
         static f32 s_camKeep = 100.0f;   // smooth: snap in fast, ease back out
         if (keep < s_camKeep) s_camKeep = keep;
         else s_camKeep = hvMin(keep, s_camKeep + dt * 6.0f);
-        if (s_camKeep < len) eye = tgt + d * (s_camKeep / len);
+        if (s_camKeep < len) {
+            // rise as we pull in, looking down over the obstacle instead of into the player
+            eye = tgt + d * (s_camKeep / len) + Vec3(0, hvMin((len - s_camKeep) * 0.18f, 1.4f), 0);
+        }
     }
     f32 gy = g_world.groundHeight(eye.x, eye.z) + 0.8f;
     if (eye.y < gy) eye.y = gy;

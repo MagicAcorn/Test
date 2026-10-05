@@ -705,7 +705,7 @@ void damagePlayer(int amount, int source) {
     // an attack pulls you out of whatever you were doing
     if (g.mode == MODE_GATHER || g.mode == MODE_FISH) gather::interrupt();
     else if (g.mode == MODE_CRAFT || g.mode == MODE_CRAFT_SELECT) craft::interrupt();
-    else if (g.mode == MODE_SHOP || g.mode == MODE_BOARD || g.mode == MODE_REST) g.mode = MODE_PLAY;
+    else if (g.mode == MODE_SHOP || g.mode == MODE_BOARD || g.mode == MODE_REST || g.mode == MODE_DIALOGUE) g.mode = MODE_PLAY;
     if (p.hp <= 0) {
         p.hp = 0;
         p.dead = true;
@@ -1172,7 +1172,7 @@ void drawUi() {
             ui::text(FONT_SMALL, x, y - (sub ? 15 : 9), ab.name, ready ? ui::WHITE : ui::TEXT_DIM, AL_CENTER);
             if (!learned) {
                 snprintf(b, sizeof(b), "Learn at Lv %d", ab.level);
-                ui::text(FONT_SMALL, x, y + 2, b, sel ? ui::rgba(120, 30, 20) : ui::RED, AL_CENTER, 0.85f);
+                ui::text(FONT_SMALL, x, y + 2, b, sel ? ui::WHITE : ui::RED, AL_CENTER, 0.85f);
             } else if (ab.mp) {
                 snprintf(b, sizeof(b), "%d MP", ab.mp);
                 ui::text(FONT_SMALL, x, y + 2, b, ui::BLUE, AL_CENTER, 0.85f);

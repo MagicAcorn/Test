@@ -111,8 +111,8 @@ void update(Actor &a, f32 dt, bool nearCamera) {
                     anim::locomotion(a.skel, lp, a.gait, 1.0f, 0.4f, a.squash, false);
                     const Skeleton *s = a.skel;
                     for (int k = 0; k < 2; k++) {
-                        if (s->jUA[k] >= 0) pose.r[s->jUA[k]] = qnlerp(pose.r[s->jUA[k]], lp.r[s->jUA[k]], 0.85f);
-                        if (s->jLA[k] >= 0) pose.r[s->jLA[k]] = qnlerp(pose.r[s->jLA[k]], lp.r[s->jLA[k]], 0.5f);
+                        if (s->jUA[k] >= 0) pose.r[s->jUA[k]] = qnlerp(pose.r[s->jUA[k]], lp.r[s->jUA[k]], 1.0f);
+                        if (s->jLA[k] >= 0) pose.r[s->jLA[k]] = qnlerp(pose.r[s->jLA[k]], lp.r[s->jLA[k]], 0.8f);
                     }
                 }
                 if (a.locoW > 0.001f) {
