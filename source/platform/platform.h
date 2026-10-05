@@ -46,7 +46,8 @@ u32 frameCount();
 u64 timeMicros();
 
 void pollInput(PadState &p);
-void rumble(bool on);
+// Rumble for a short pulse; the motor stops on its own. 0 stops it now.
+void rumble(f32 seconds);
 
 // Single save slot.
 bool saveWrite(const void *data, u32 size);

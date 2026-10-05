@@ -198,7 +198,8 @@ void updateFishing(f32 dt);
 void drawFishingUi();
 void drawWorld();
 int currentNode();
-int fishState();   // 0 ready, 1 cast, 2 wait, 3 bite, 4 reel, 5 result
+int fishState();
+void interrupt();          // attacked: drop out of gathering / fishing   // 0 ready, 1 cast, 2 wait, 3 bite, 4 reel, 5 result
 }
 namespace craft {
 void openStation(int stationType);
@@ -208,6 +209,7 @@ void update(f32 dt);
 void drawUi();
 int selectedRecipe();   // recipe under the cursor in the select list, -1 otherwise
 bool synthesisDone();
+void interrupt();          // attacked: finish the piece as it stands and leave
 int forgeParts();          // >0 while the forge minigame is running
 int forgeSelected();
 void forgePart(int i, int *val, int *lo, int *hi);

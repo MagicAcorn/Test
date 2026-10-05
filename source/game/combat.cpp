@@ -586,8 +586,13 @@ void useConsumable(int k) {
     }
     u16 use = 0;
     if (k == 0) {
-        for (u16 it : HEAL)
-            if (g.pd.inv.count(it)) { use = it; break; }
+        if (p.hp >= p.maxHp) { toast("You're already at full health.", ui::TEXT_DIM); return; }
+        // the smallest heal that covers what's missing, else the biggest there is
+        int missing = p.maxHp - p.hp;
+        for (u16 it : HEAL) {
+            if (!g.pd.inv.count(it)) continue;
+            if (!use || ITEMS[it].power >= missing) use = it;
+        }
         if (!use) { toast("No food or potions!", ui::RED); return; }
         p.hp = hvMin(p.maxHp, p.hp + ITEMS[use].power);
         fx::burst(p.pos + Vec3(0, 1, 0), FX_HEAL, 16);
@@ -695,8 +700,12 @@ void damagePlayer(int amount, int source) {
     snprintf(b, sizeof(b), "-%d", d);
     fx::floatText(p.pos + Vec3(0, 2.3f, 0), b, ui::RED);
     audio::sfx(SFX_HURT);
-    plat::rumble(true);
+    plat::rumble(0.18f);
     if (source >= 0 && g.target < 0) g.target = source;   // auto-target attackers
+    // an attack pulls you out of whatever you were doing
+    if (g.mode == MODE_GATHER || g.mode == MODE_FISH) gather::interrupt();
+    else if (g.mode == MODE_CRAFT || g.mode == MODE_CRAFT_SELECT) craft::interrupt();
+    else if (g.mode == MODE_SHOP || g.mode == MODE_BOARD || g.mode == MODE_REST) g.mode = MODE_PLAY;
     if (p.hp <= 0) {
         p.hp = 0;
         p.dead = true;
@@ -835,13 +844,45 @@ static bool tryAbility(int i) {
     return true;
 }
 
+// melee damage lands when the swing connects, not on the button press
+static f32 s_hitPending = -1.0f;
+static int s_hitStep = 0;
+static f32 s_hitStop = 0;
+
+static void meleeImpact(int step) {
+    static const f32 POT_W[3] = {0.8f, 0.9f, 1.6f};
+    Actor &p = g.player;
+    Vec3 fwd(sinf(p.yaw), 0, cosf(p.yaw));
+    f32 reach = step == 2 ? 3.8f : 3.2f;
+    bool any = false;
+    for (int k = 0; k < MAX_ACTORS; k++) {
+        Actor &a = g.actors[k];
+        if (!a.active || a.kind != AK_ENEMY || a.dead) continue;
+        Vec3 d = a.pos - p.pos;
+        d.y = 0;
+        f32 dist = d.lenXZ();
+        if (dist > reach + a.radius) continue;
+        if (dist > 0.8f && dot(d, fwd) / dist < 0.25f) continue;
+        dealPlayerHit(k, POT_W[step], step == 2 ? FX_SPARK : FX_HIT);
+        if (step == 2) s_ai[k].stagger = hvMax(s_ai[k].stagger, 0.45f);
+        // knockback (bosses barely budge)
+        f32 push = (step == 2 ? 0.7f : 0.22f) * (a.enemyType == EN_BARROW_KING ? 0.2f : 1.0f);
+        Vec3 np = a.pos + (dist > 0.01f ? d * (1.0f / dist) : fwd) * push;
+        if (g_world.walkable(np.x, np.z, a.pos.y)) {
+            a.pos = np;
+            g_world.resolveCircle(a.pos, a.radius);
+        }
+        any = true;
+    }
+    if (any) s_hitStop = step == 2 ? 0.1f : 0.055f;
+}
+
 static void basicAttack() {
     Actor &p = g.player;
     bool mage = g.pd.job == SK_MAGE;
     int t = autoAim(mage ? 22.0f : 4.5f);
     if (t >= 0) p.yaw = yawTo(p.pos, g.actors[t].pos);
     int step = s_atkWindow > 0 ? s_atkStep : 0;
-    static const f32 POT_W[3] = {0.8f, 0.9f, 1.6f};
     static const char *const ANIM_W[3] = {"slash", "slash_h", "heavy"};
     g.combatTimer = 6.0f;
     if (!mage) {
@@ -849,18 +890,8 @@ static void basicAttack() {
         // lunge a little and hit everything in a frontal arc
         Vec3 fwd(sinf(p.yaw), 0, cosf(p.yaw));
         p.vel = fwd * (step == 2 ? 6.0f : 3.5f);
-        f32 reach = step == 2 ? 3.8f : 3.2f;
-        for (int k = 0; k < MAX_ACTORS; k++) {
-            Actor &a = g.actors[k];
-            if (!a.active || a.kind != AK_ENEMY || a.dead) continue;
-            Vec3 d = a.pos - p.pos;
-            d.y = 0;
-            f32 dist = d.lenXZ();
-            if (dist > reach + a.radius) continue;
-            if (dist > 0.8f && dot(d, fwd) / dist < 0.25f) continue;
-            dealPlayerHit(k, POT_W[step], step == 2 ? FX_SPARK : FX_HIT);
-            if (step == 2) s_ai[k].stagger = hvMax(s_ai[k].stagger, 0.45f);
-        }
+        s_hitPending = step == 2 ? 0.2f : 0.11f;
+        s_hitStep = step;
         audio::sfx(SFX_SWING, 1.0f, 0.9f + step * 0.08f);
         s_atkTimer = step == 2 ? 0.62f : 0.36f;
     } else {
@@ -915,6 +946,14 @@ void playerUpdate(f32 dt) {
     PadState &pad = g.pad;
     if (s_atkTimer > 0) s_atkTimer -= dt;
     if (s_atkWindow > 0) s_atkWindow -= dt;
+    if (s_hitStop > 0) s_hitStop -= dt;
+    if (s_hitPending >= 0) {
+        s_hitPending -= dt;
+        if (s_hitPending < 0) {
+            if (g.dodgeTimer <= 0 && !p.dead) meleeImpact(s_hitStep);
+            s_hitPending = -1.0f;
+        }
+    }
     // Z: lock on / cycle targets (re-centre the camera when nothing is around)
     if (pad.pressed & BTN_Z) {
         int n = nearestEnemy(p.pos, 26.0f, g.target);
@@ -982,7 +1021,7 @@ void playerUpdate(f32 dt) {
 }
 
 bool wheelOpen() { return s_wheelOpen; }
-f32 timeScale() { return s_wheelOpen ? 0.15f : 1.0f; }
+f32 timeScale() { return s_wheelOpen ? 0.15f : (s_hitStop > 0 ? 0.06f : 1.0f); }
 const char *quickItemName() {
     static const char *const N[3] = {"Heal", "Tonic", "Draught"};
     return N[s_quickSlot];
@@ -1101,9 +1140,9 @@ void drawUi() {
         char b[64];
         snprintf(b, sizeof(b), "Lv %d  %s", t.level, t.name);
         ui::text(FONT_UI, x + 14, y + 6, b, t.enemyType == EN_BARROW_KING ? ui::GOLD : ui::WHITE);
-        ui::bar(x + 14, y + 32, tw - 28, 9, (f32)t.hp / t.maxHp, ui::rgba(230, 70, 60));
+        ui::bar(x + 14, y + 33, tw - 72, 9, (f32)t.hp / t.maxHp, ui::rgba(230, 70, 60));
         snprintf(b, sizeof(b), "%d%%", t.hp * 100 / hvMax(1, t.maxHp));
-        ui::text(FONT_SMALL, x + tw - 14, y + 8, b, ui::TEXT_DIM, AL_RIGHT);
+        ui::text(FONT_SMALL, x + tw - 14, y + 27, b, ui::TEXT_DIM, AL_RIGHT);
     }
     // skill wheel
     if (s_wheelOpen) {
@@ -1133,7 +1172,7 @@ void drawUi() {
             ui::text(FONT_SMALL, x, y - (sub ? 15 : 9), ab.name, ready ? ui::WHITE : ui::TEXT_DIM, AL_CENTER);
             if (!learned) {
                 snprintf(b, sizeof(b), "Learn at Lv %d", ab.level);
-                ui::text(FONT_SMALL, x, y + 2, b, ui::RED, AL_CENTER, 0.85f);
+                ui::text(FONT_SMALL, x, y + 2, b, sel ? ui::rgba(120, 30, 20) : ui::RED, AL_CENTER, 0.85f);
             } else if (ab.mp) {
                 snprintf(b, sizeof(b), "%d MP", ab.mp);
                 ui::text(FONT_SMALL, x, y + 2, b, ui::BLUE, AL_CENTER, 0.85f);

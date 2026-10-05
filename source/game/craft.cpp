@@ -241,6 +241,11 @@ void exitToPlay() {
 }
 }  // namespace
 
+void interrupt() {
+    if (g.mode == MODE_CRAFT && !s_done) finish();
+    if (g.mode == MODE_CRAFT || g.mode == MODE_CRAFT_SELECT) exitToPlay();
+}
+
 int selectedRecipe() { return (g.mode == MODE_CRAFT_SELECT && s_count) ? s_list[s_sel] : -1; }
 bool synthesisDone() { return s_done; }
 int forgeParts() { return g.mode == MODE_CRAFT ? s_parts : 0; }
@@ -404,12 +409,12 @@ void drawSelectUi() {
         ui::icon(ITEMS[r.output].model, dx + dw * 0.5f, y + 60, 80, 1.0f);
         ui::text(FONT_UI, dx + dw * 0.5f, y + 108, ITEMS[r.output].name, ui::GOLD, AL_CENTER);
         ui::textWrap(FONT_SMALL, dx + 12, y + 134, dw - 24, ITEMS[r.output].desc, ui::TEXT_DIM);
-        snprintf(b, sizeof(b), "Difficulty %d   Quality %d   Durability %d", r.progress, r.quality, r.durability);
-        ui::text(FONT_SMALL, dx + 12, y + 176, b, ui::TEXT_DIM);
+        snprintf(b, sizeof(b), "Makes %d   -   %d XP", r.outCount, r.xp);
+        ui::text(FONT_SMALL, dx + dw * 0.5f, y + 176, b, ui::TEXT_DIM, AL_CENTER);
     }
     f32 py = y + h + 12;
     f32 px = x;
-    px += ui::prompt(GL_A, px, py, "Synthesize");
+    px += ui::prompt(GL_A, px, py, "Craft");
     ui::prompt(GL_B, px, py, "Close");
 }
 

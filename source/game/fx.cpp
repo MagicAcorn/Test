@@ -209,7 +209,12 @@ void floatText(const Vec3 &p, const char *text, GXColor c, f32 scale) {
             slot = &f;
             break;
         }
-    slot->p = p;
+    // lift above any fresh number at the same spot so they don't stack
+    Vec3 at = p;
+    for (const auto &f : s_ft)
+        if (&f != slot && f.life > 1.0f && distXZ(f.p, at) < 1.2f && fabsf(f.p.y - at.y) < 0.4f) at.y = f.p.y + 0.45f;
+    at.x += (frand() - 0.5f) * 0.4f;
+    slot->p = at;
     snprintf(slot->text, sizeof(slot->text), "%s", text);
     slot->c = c;
     slot->life = 1.4f;

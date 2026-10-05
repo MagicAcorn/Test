@@ -457,6 +457,19 @@ static u16 rollFish(const NodeDef *d) {
     return d->loot[0].item;
 }
 
+void interrupt() {
+    if (g.mode == MODE_GATHER) {
+        end();
+    } else if (g.mode == MODE_FISH) {
+        plat::rumble(0);
+        f_spot = -1;
+        f_state = FS_READY;
+        g.mode = MODE_PLAY;
+        g.player.setHeld(g.pd.weapon ? ITEMS[g.pd.weapon].model : nullptr);
+        g.player.play("idle", 0.2f);
+    }
+}
+
 void updateFishing(f32 dt) {
     if (f_spot < 0) {
         g.mode = MODE_PLAY;
@@ -504,18 +517,18 @@ void updateFishing(f32 dt) {
                 f_timer = 0.95f;
                 fx::burst(f_bobber, FX_SPLASH, 14);
                 audio::sfx(SFX_BITE);
-                plat::rumble(true);
+                plat::rumble(0.5f);
             }
             break;
         case FS_BITE:
             if (pad.pressed & BTN_A) {
-                plat::rumble(false);
+                plat::rumble(0);
                 f_state = FS_REEL;
                 f_timer = 0.8f;
                 p.play("pickup", 0.1f, true, 1.3f);
                 f_caught = rollFish(d);
             } else if (f_timer <= 0) {
-                plat::rumble(false);
+                plat::rumble(0);
                 toast("The fish got away...", ui::TEXT_DIM);
                 f_state = FS_READY;
             }

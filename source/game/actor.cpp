@@ -117,7 +117,13 @@ void update(Actor &a, f32 dt, bool nearCamera) {
         // procedural squash & stretch for slimes / props
         f32 hop = a.dead ? 0 : fabsf(sinf(a.squash * 5.0f)) * hvMin(1.0f, a.vel.lenXZ() * 0.5f + 0.15f);
         f32 sy = 1.0f + hop * 0.25f - (a.dead ? hvMin(a.deadTimer * 2.0f, 0.85f) : 0);
-        f32 sxz = 1.0f / sqrtf(hvMax(sy, 0.15f));
+        f32 sxz = hvMin(1.0f / sqrtf(hvMax(sy, 0.15f)), 1.25f);
+        if (a.dead) {
+            // splat briefly, then melt away into the ground
+            f32 melt = hvSaturate((a.deadTimer - 0.35f) * 1.6f);
+            sxz *= 1.0f - melt * 0.8f;
+            sy *= 1.0f - melt * 0.7f;
+        }
         Mat34 base = Mat34::place(a.pos + Vec3(0, hop * 0.35f, 0), a.yaw, a.scale);
         a.world = base * Mat34::scale(Vec3(sxz, sy, sxz));
     }

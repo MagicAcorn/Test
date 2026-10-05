@@ -109,6 +109,7 @@ void init() {
 }
 
 void shutdown() {
+    PAD_ControlMotor(0, PAD_MOTOR_STOP);
     GX_AbortFrame();
     GX_Flush();
     VIDEO_SetBlack(true);
@@ -244,9 +245,23 @@ void pollInput(PadState &p) {
     p.released = s_prevHeld & ~held;
     p.held = held;
     s_prevHeld = held;
+    rumbleTick(s_dt);
 }
 
-void rumble(bool on) { PAD_ControlMotor(0, on ? PAD_MOTOR_RUMBLE : PAD_MOTOR_STOP); }
+static f32 s_rumble = 0;
+static bool s_rumbleOn = false;
+static void rumbleTick(f32 dt) {
+    if (s_rumble > 0) s_rumble -= dt;
+    bool on = s_rumble > 0;
+    if (on != s_rumbleOn) {
+        PAD_ControlMotor(0, on ? PAD_MOTOR_RUMBLE : PAD_MOTOR_STOP);
+        s_rumbleOn = on;
+    }
+}
+void rumble(f32 seconds) {
+    s_rumble = seconds;
+    rumbleTick(0);
+}
 
 // ------------------------------------------------------------- saves
 static u8 s_cardWork[CARD_WORKAREA_SIZE] ATTRIBUTE_ALIGN(32);

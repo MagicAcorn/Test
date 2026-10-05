@@ -439,7 +439,7 @@ class World:
         self.place('pr/hearth', tx, tz, 0, 1.0, ('c', 3.6), shadow=5)
         self.marker(MK_STATION, STATION['hearth'], tx, tz, radius=5.0)
         self.marker(MK_LIGHT, LIGHT['fire'], tx, tz, y=self.height_at(tx, tz) + 2.6)
-        self.marker(MK_REGION, REGION['emberwick'], tx, tz, radius=52)
+        self.marker(MK_REGION, REGION['emberwick'], tx, tz, radius=40)
         self.marker(MK_PLAYER, 0, tx + 2, tz + 9, yaw=math.pi)
         # lanterns around the plaza
         for k in range(8):

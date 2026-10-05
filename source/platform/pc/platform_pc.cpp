@@ -265,7 +265,7 @@ void pollInput(PadState &p) {
     p = g_pad;
 }
 
-void rumble(bool) {}
+void rumble(f32) {}
 
 bool saveWrite(const void *data, u32 size) {
     if (system("mkdir -p out") != 0) {}

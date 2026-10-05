@@ -190,7 +190,7 @@ void bubbles() {
 
 void toasts() {
     // stack downward under the player panel, newest at the top
-    f32 x = 20, y = 104;
+    f32 x = 20, y = g.bannerTimer > 0 ? H() * 0.26f + 76 : 104;
     int row = 0;
     for (int i = 0; i < HV_ARRAY_COUNT(g.toasts); i++) {
         auto &t = g.toasts[i];
@@ -215,9 +215,9 @@ void banner() {
         ui::text(FONT_BIG, W() * 0.5f, cy - 6, g.banner, ui::rgba(255, 220, 130, (u8)(255 * a)), AL_CENTER);
         if (g.bannerSub[0]) ui::text(FONT_UI, W() * 0.5f, cy + 34, g.bannerSub, ui::rgba(255, 255, 255, (u8)(255 * a)), AL_CENTER);
     }
-    if (g.regionTimer > 0 && g.bannerTimer <= 0) {
+    if (g.regionTimer > 0 && g.bannerTimer <= 0 && g.mode != MODE_CUTSCENE) {
         f32 a = hvSaturate(g.regionTimer) * hvSaturate((3.5f - g.regionTimer) * 2);
-        ui::text(FONT_BIG, W() * 0.5f, H() * 0.18f, g.regionName, ui::rgba(255, 250, 235, (u8)(240 * a)), AL_CENTER, 0.85f);
+        ui::text(FONT_BIG, W() * 0.5f, H() * 0.66f, g.regionName, ui::rgba(255, 250, 235, (u8)(240 * a)), AL_CENTER, 0.85f);
     }
     if (g.saveMsgTimer > 0) ui::text(FONT_SMALL, W() - 20, H() - 30, g.saveMsg, ui::rgba(255, 255, 255, (u8)(hvSaturate(g.saveMsgTimer) * 255)), AL_RIGHT);
 }
@@ -225,12 +225,17 @@ void banner() {
 
 void draw() {
     if (g.mode == MODE_TITLE || g.mode == MODE_CREATE) return;
+    if (g.mode == MODE_CUTSCENE) {
+        // cutscenes stay clean: only big story banners
+        banner();
+        return;
+    }
     bubbles();
     bool full = g.mode == MODE_PLAY || g.mode == MODE_DEAD;
     if (g.mode != MODE_MENU && g.mode != MODE_CRAFT && g.mode != MODE_CRAFT_SELECT && g.mode != MODE_SHOP && g.mode != MODE_BOARD &&
         g.mode != MODE_CUTSCENE) {
         playerFrame();
-        clock();
+        if (g.bannerTimer <= 0) clock();
         if (full) {
             tracker();
             hotbar();
@@ -239,7 +244,7 @@ void draw() {
         combat::drawUi();
         sim::drawUi();
     }
-    toasts();
+    if (g.mode != MODE_CRAFT) toasts();
     banner();
     if (g.levelUpFlash > 0) ui::rect(0, 0, W(), H(), ui::rgba(255, 230, 160, (u8)(g.levelUpFlash * 70)));
 }
@@ -490,6 +495,10 @@ void updateMenu(f32 dt) {
                 const ItemDef &d = ITEMS[sl.item];
                 if (d.cat == IC_WEAPON || d.cat == IC_ARMOR) equip(sl.item);
                 else if (d.cat == IC_FOOD || d.cat == IC_POTION) {
+                    bool heals = sl.item != IT_SUNPETAL_DRAUGHT && sl.item != IT_SAGE_TONIC;
+                    if (g.cooldowns[7] > 0) { toast("Item cooldown...", ui::TEXT_DIM); break; }
+                    if (heals && g.player.hp >= g.player.maxHp) { toast("You're already at full health.", ui::TEXT_DIM); break; }
+                    g.cooldowns[7] = 4.0f;
                     if (sl.item == IT_SUNPETAL_DRAUGHT) g.buffDamage = 60;
                     else if (sl.item == IT_SAGE_TONIC) { g.player.mp = hvMin(g.player.maxMp, g.player.mp + 150); g.gp = hvMin(g.maxGp, g.gp + 150); }
                     else g.player.hp = hvMin(g.player.maxHp, g.player.hp + d.power * (sl.hq ? 11 : 10) / 10);
@@ -521,6 +530,11 @@ void updateMenu(f32 dt) {
             if (pad.pressed & BTN_A) {
                 if (s_sysSel == 0) save::write();
                 else if (s_sysSel == 1) {
+                    if (g.combatTimer > 0) {
+                        toast("You can't rest with enemies about.", ui::RED);
+                        audio::sfx(SFX_UI_BACK);
+                        break;
+                    }
                     if (g.pd.hour > 6.0f) g.pd.day++;
                     g.pd.hour = 6.5f;
                     shop::newDay();

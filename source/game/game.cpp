@@ -440,12 +440,22 @@ static void updateRegion() {
             best = m.id;
         }
     }
-    if (best != g.currentRegion && best >= 0) {
+    // a new region has to hold for a moment before its title shows,
+    // so skirting a border doesn't flash names
+    static int s_pending = -1;
+    static f32 s_dwell = 0;
+    if (best != s_pending) {
+        s_pending = best;
+        s_dwell = 0;
+    }
+    s_dwell += plat::frameDelta();
+    if (best != g.currentRegion && best >= 0 && (s_dwell > 1.2f || g.currentRegion < 0)) {
+        bool first = g.currentRegion < 0;
         static const char *const NAMES[] = {"", "Emberwick", "Whisperwood", "Copperhill Quarry", "The Old Barrow", "Hollis Farm",
                                             "Mirror Lake", "The Emberrun", "Sunny Meadows", "The Ringwall Peaks"};
         if (best < HV_ARRAY_COUNT(NAMES)) {
             snprintf(g.regionName, sizeof(g.regionName), "%s", NAMES[best]);
-            g.regionTimer = 3.5f;
+            if (!first) g.regionTimer = 3.5f;   // not on load; the save banner covers that
         }
         g.currentRegion = best;
     }
@@ -681,7 +691,7 @@ void gameFrame() {
             combat::update(wdt);
             fx::update(wdt);
         }
-        actors::update(g.player, dt, true);
+        actors::update(g.player, combat::wheelOpen() ? dt : dt * combat::timeScale(), true);
         if (g.mode != MODE_CUTSCENE) updateCamera(dt, g.mode == MODE_PLAY || g.mode == MODE_DEAD);
         updateRegion();
         updateMusic();
