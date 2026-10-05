@@ -190,6 +190,8 @@ void scenarioTick() {
                     printf("[probe] x %.0f z %.0f h %.2f water %d walk %d obj %d\n", x, z, gh, g_world.isWater(x, z),
                            g_world.walkable(x + 1, z, gh), blocked);
                 }
+        } else if (is("bridgewalk")) {
+            teleport(Vec3(226, 0, 136), 1.57f);
         } else if (is("probe2")) {
             for (int i = 0; i < g_world.numObjects(); i++) {
                 const WorldObject &o = g_world.object(i);
@@ -211,6 +213,15 @@ void scenarioTick() {
             g.camPitch = 0.42f;
             g.camDist = 13;
         }
+    }
+    if (is("bridgewalk") && f > 3) {
+        Vec3 fwd(sinf(g.camYaw), 0, cosf(g.camYaw)), right(-cosf(g.camYaw), 0, sinf(g.camYaw));
+        Vec3 d(1, 0, 0);
+        g.pad.sy = dot(d, fwd);
+        g.pad.sx = dot(d, right);
+        if (f % 20 == 0) printf("[walk] f %d pos %.2f %.2f %.2f ground %.2f\n", f, g.player.pos.x, g.player.pos.y, g.player.pos.z,
+                                g_world.groundHeight(g.player.pos.x, g.player.pos.z, g.player.pos.y + 1.0f));
+        return;
     }
     if (is("story")) {
         storyBotTick();

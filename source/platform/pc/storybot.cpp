@@ -43,7 +43,7 @@ void press(u16 b, int gap = 12) {
 bool crossesWater(const Vec3 &a, const Vec3 &b) {
     f32 len = distXZ(a, b);
     int n = (int)(len / 0.8f);
-    for (int i = 1; i < n; i++) {
+    for (int i = 1; i < n - 4; i++) {   // ignore the last few metres (targets at the shore)
         Vec3 q = lerp(a, b, (f32)i / n);
         if (g_world.isWater(q.x, q.z)) return true;
     }
@@ -71,7 +71,11 @@ Vec3 routeVia(const Vec3 &target) {
     if (best < 0) return target;
     const Bridge &b = g_world.bridge(best);
     bool onBridge = fabsf(p.x - b.x) <= b.halfLen + 2.6f && fabsf(p.z - b.z) <= b.halfWidth;
-    return onBridge ? farEnd : nearEnd;
+    if (onBridge) {   // head for whichever end is on the target's side
+        Vec3 e0(b.x - b.halfLen - 1.5f, 0, b.z), e1(b.x + b.halfLen + 1.5f, 0, b.z);
+        return distXZ(e0, target) < distXZ(e1, target) ? e0 : e1;
+    }
+    return nearEnd;
 }
 
 // Steer with the stick toward p; returns true when within `reach`.
