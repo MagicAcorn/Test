@@ -236,7 +236,17 @@ bool obtain(u16 item, int count, int depth = 0) {
                 g.pad.sx = g.pad.sy = 0;
                 press(BTN_A, 20);
             } else {
-                walkTo(g.nodes[n].pos, fishing ? 3.0f : 1.6f);
+                Vec3 goal = g.nodes[n].pos;
+                if (fishing) {
+                    // stand on the bank: walk from the spot toward the player until dry land
+                    Vec3 dir = g.player.pos - goal;
+                    dir.y = 0;
+                    f32 l = dir.lenXZ();
+                    if (l > 0.01f) dir = dir * (1.0f / l);
+                    for (int k = 0; k < 60 && g_world.isWater(goal.x, goal.z); k++) goal += dir * 0.5f;
+                    goal += dir * 0.6f;
+                }
+                walkTo(goal, fishing ? 0.8f : 1.6f);
             }
         }
         return false;

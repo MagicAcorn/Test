@@ -182,8 +182,8 @@ void scenarioTick() {
         } else if (is("title")) {
             g.mode = MODE_TITLE;
         } else if (is("probe")) {
-            for (f32 z = 196; z <= 196; z += 4)
-                for (f32 x = 228; x <= 262; x += 1) {
+            for (f32 z = 136; z <= 140; z += 4)
+                for (f32 x = 226; x <= 260; x += 1) {
                     f32 gh = g_world.groundHeight(x, z);
                     Vec3 c(x, gh, z);
                     bool blocked = g_world.resolveCircle(c, 0.4f);

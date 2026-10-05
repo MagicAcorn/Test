@@ -330,11 +330,12 @@ class World:
             for sgn in (-1.0, 1.0):
                 ex = bx + sgn * hl
                 d = (X - ex) * sgn                       # distance outward from the deck end
-                along = np.clip(1.0 - d / 9.0, 0.0, 1.0) * (d >= -0.5)
                 lat = np.clip((hw + 3.0 - np.abs(Z - bz)) / 3.0, 0.0, 1.0)
-                w = along * lat
-                target = by - 0.15 - np.clip(d, 0, None) * 0.22
-                self.H = np.where(w > 0, np.maximum(self.H, self.H * (1 - w) + target * w), self.H)
+                # constant 1:4.5 slope from the deck end down to the existing ground
+                target = by - 0.1 - np.clip(d, 0, None) * 0.22
+                ramp = np.where((d >= -3.0) & (d < 16.0), target, -1e9)
+                blended = self.H * (1 - lat) + np.maximum(self.H, ramp) * lat
+                self.H = np.where((lat > 0) & (ramp > self.H), blended, self.H)
 
     def blocked_at(self, x, z, margin=0.6):
         """Models whose collision covers (x, z) (same box convention as World::resolveCircle)."""

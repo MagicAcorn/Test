@@ -256,6 +256,7 @@ bool World::walkable(f32 x, f32 z, f32 fromY) const {
     f32 g = groundHeight(x, z, fromY);
     if (g < m_water - 1.1f) return false;            // deep water
     if (g - fromY > 1.6f) return false;              // cliff up
+    if (g > terrainHeight(x, z) + 0.05f) return true;  // on a bridge or dock deck: the bank below doesn't matter
     Vec3 n = terrainNormal(x, z);
     if (n.y < 0.62f && g > fromY + 0.15f) return false;   // too steep to climb
     return true;
