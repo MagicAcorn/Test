@@ -272,6 +272,16 @@ bool World::resolveCircle(Vec3 &p, f32 radius) const {
 }
 
 bool World::walkable(f32 x, f32 z, f32 fromY) const {
+    // railings: from a bridge deck you can only leave by its ends
+    for (int i = 0; i < m_numBridges; i++) {
+        const Bridge &br = m_bridges[i];
+        f32 dx = x - br.x, dz = z - br.z;
+        if (fabsf(dx) > br.halfLen - 0.3f || fabsf(dz) <= br.halfWidth) continue;
+        if (fabsf(dz) > br.halfWidth + 1.5f) continue;
+        f32 t = dx / br.halfLen;
+        f32 deck = br.y + br.arch * (1.0f - t * t);
+        if (fabsf(fromY - deck) < 0.5f && deck - terrainHeight(x, z) > 0.8f) return false;
+    }
     f32 g = groundHeight(x, z, fromY);
     if (g < m_water - 1.1f) return false;            // deep water
     if (g - fromY > 1.6f) return false;              // cliff up

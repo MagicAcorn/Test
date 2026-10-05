@@ -123,7 +123,9 @@ void killEnemy(int ai) {
     fx::burst(a.pos + Vec3(0, 0.8f, 0), d.slime ? FX_SPLASH : FX_DUST, 16);
     // rewards (auto-loot)
     int jl = skillLevel(g.pd.job);
-    u32 xp = d.xp;
+    // combat levels keep pace with the story's enemies on the slower XP
+    // curve; farming far weaker foes still pays little
+    u32 xp = d.xp * 7 / 4;
     if (d.level + 5 < jl) xp = xp / 3;
     addXp(g.pd.job, xp);
     g.pd.coins += d.coins;

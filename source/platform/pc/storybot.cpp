@@ -368,7 +368,7 @@ bool obtain(u16 item, int count, int depth = 0) {
 
 bool fight(int enemyType) {
     if (g.mode == MODE_DEAD) {
-        say("!! died fighting - respawning");
+        say("!! died fighting - respawning (job Lv %d, weapon %d, armor %d, potions %d)", skillLevel(g.pd.job), g.pd.weapon, g.pd.armor, g.pd.inv.count(IT_POTION_MINOR) + g.pd.inv.count(IT_GRILLED_TROUT));
         press(BTN_A, 60);
         return false;
     }
@@ -428,6 +428,16 @@ void equipBest() {
         playerRecalcStats();
         printf("[bot] equipped %s\n", ITEMS[best].name);
     }
+    // body armour, as any player would put on the quest-reward vest
+    u16 arm = 0;
+    int ap = -1;
+    for (const InvSlot &s : g.pd.inv.slots)
+        if (s.item && ITEMS[s.item].cat == IC_ARMOR && ITEMS[s.item].power > ap) arm = s.item, ap = ITEMS[s.item].power;
+    if (arm && arm != g.pd.armor && (!g.pd.armor || ITEMS[arm].power > ITEMS[g.pd.armor].power)) {
+        g.pd.armor = arm;
+        playerRecalcStats();
+        printf("[bot] wearing %s\n", ITEMS[arm].name);
+    }
 }
 
 }  // namespace
@@ -451,6 +461,10 @@ void storyBotTick() {
             giveItem(IT_WORN_HATCHET, 1, false, false);
             if (from > 1) giveItem(IT_WORN_PICK, 1, false, false);
             if (from > 2) giveItem(IT_WORN_ROD, 1, false, false);
+            // the fights in skipped quests (quest 4: four meadow slimes)
+            if (from > 4) g.pd.xp[SK_WARRIOR] += 4 * 26 * 7 / 4;
+            // quest 4 has you brew a batch of healing potions
+            if (from > 3) giveItem(IT_POTION_MINOR, 6, false, false);
             printf("[bot] skipped to quest %d\n", from);
         }
         g.mode = MODE_PLAY;

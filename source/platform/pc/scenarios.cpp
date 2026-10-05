@@ -182,8 +182,8 @@ void scenarioTick() {
         } else if (is("title")) {
             g.mode = MODE_TITLE;
         } else if (is("probe")) {
-            for (f32 z = 136; z <= 140; z += 4)
-                for (f32 x = 226; x <= 260; x += 1) {
+            for (f32 z = 133; z <= 139; z += 1)
+                for (f32 x = 230; x <= 240; x += 1) {
                     f32 gh = g_world.groundHeight(x, z);
                     Vec3 c(x, gh, z);
                     bool blocked = g_world.resolveCircle(c, 0.4f);
@@ -192,6 +192,8 @@ void scenarioTick() {
                 }
         } else if (is("bridgewalk")) {
             teleport(Vec3(226, 0, 136), 1.57f);
+        } else if (is("railtest")) {
+            teleport(Vec3(240, 0, 136), 0.0f);
         } else if (is("bridgewalk2")) {
             teleport(Vec3(266, 0, 198), -1.57f);
         } else if (is("probe2")) {
@@ -236,9 +238,9 @@ void scenarioTick() {
             g.camDist = 13;
         }
     }
-    if ((is("bridgewalk") || is("bridgewalk2")) && f > 3) {
+    if ((is("bridgewalk") || is("bridgewalk2") || is("railtest")) && f > 3) {
         Vec3 fwd(sinf(g.camYaw), 0, cosf(g.camYaw)), right(-cosf(g.camYaw), 0, sinf(g.camYaw));
-        Vec3 d(is("bridgewalk2") ? -1.0f : 1.0f, 0, 0);
+        Vec3 d = is("railtest") ? Vec3(0, 0, 1) : Vec3(is("bridgewalk2") ? -1.0f : 1.0f, 0, 0);
         g.pad.sy = dot(d, fwd);
         g.pad.sx = dot(d, right);
         if (f % 20 == 0) printf("[walk] f %d pos %.2f %.2f %.2f ground %.2f\n", f, g.player.pos.x, g.player.pos.y, g.player.pos.z,
