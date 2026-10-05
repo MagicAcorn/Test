@@ -207,17 +207,20 @@ void bubbles() {
 }
 
 void toasts() {
-    f32 x = 20, y = H() * 0.5f - 20;
+    // stack downward under the player panel, newest at the top
+    f32 x = 20, y = 104;
+    int row = 0;
     for (int i = 0; i < HV_ARRAY_COUNT(g.toasts); i++) {
         auto &t = g.toasts[i];
-        if (t.timer <= 0) continue;
+        if (t.timer <= 0 || row >= 4) continue;
         u8 a = (u8)(hvSaturate(t.timer) * 255);
         GXColor c = t.color;
         c.a = a;
         f32 w = ui::textWidth(FONT_SMALL, t.text) + (t.icon ? 44 : 20);
-        ui::panel(x, y - i * 30, w, 26, ui::rgba(20, 18, 28, (u8)(a * 0.7f)), 9);
-        if (t.icon && a > 60) ui::icon(ITEMS[t.icon].model, x + 16, y - i * 30 + 13, 22, 1.5f);
-        ui::text(FONT_SMALL, x + (t.icon ? 32 : 10), y - i * 30 + 5, t.text, c);
+        f32 ty = y + row++ * 30;
+        ui::panel(x, ty, w, 26, ui::rgba(20, 18, 28, (u8)(a * 0.7f)), 9);
+        if (t.icon && a > 60) ui::icon(ITEMS[t.icon].model, x + 16, ty + 13, 22, 1.5f);
+        ui::text(FONT_SMALL, x + (t.icon ? 32 : 10), ty + 5, t.text, c);
     }
 }
 
@@ -242,7 +245,8 @@ void draw() {
     if (g.mode == MODE_TITLE || g.mode == MODE_CREATE) return;
     bubbles();
     bool full = g.mode == MODE_PLAY || g.mode == MODE_DEAD;
-    if (g.mode != MODE_MENU) {
+    if (g.mode != MODE_MENU && g.mode != MODE_CRAFT && g.mode != MODE_CRAFT_SELECT && g.mode != MODE_SHOP && g.mode != MODE_BOARD &&
+        g.mode != MODE_CUTSCENE) {
         playerFrame();
         clock();
         if (full) {

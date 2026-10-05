@@ -161,9 +161,9 @@ void buildGrass(GrassChunk &g, int cx, int cz) {
         if (y < g_w->waterLevel() + 0.3f) continue;
         Tuft &t = tufts[nt++];
         t.x = x; t.y = y - 0.05f; t.z = z;
-        f32 sz = 0.8f + ((r2 >> 8) & 255) / 255.0f * 0.7f;
-        t.w = 1.5f * sz;
-        t.h = 1.05f * sz;
+        f32 sz = 0.75f + ((r2 >> 8) & 255) / 255.0f * 0.55f;
+        t.w = 1.25f * sz;
+        t.h = 0.72f * sz;
         t.a = ((r2 >> 16) & 255) / 255.0f * HV_PI;
         u32 kindr = (r2 >> 24) & 255;
         t.kind = kindr < 18 ? 2 : (kindr < 30 ? 3 : (kindr & 1));

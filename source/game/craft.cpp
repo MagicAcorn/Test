@@ -235,6 +235,7 @@ void openStation(int st) {
     int sk = stationSkill(st);
     if (sk < 0) return;
     s_station = st;
+    g.stationOpen = st;
     s_skill = sk;
     buildList();
     s_sel = 0;

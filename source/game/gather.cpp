@@ -328,8 +328,9 @@ void drawUi() {
     Node &n = g.nodes[s_node];
     const NodeDef *d = nodeDef(n.type);
     f32 W = ui::width();
-    f32 x = W - 300, y = 150, w = 280;
+    f32 x = W - 300, w = 280;
     f32 h = 92 + s_numLoot * 48;
+    f32 y = hvMin(210.0f, ui::height() - h - 80);
     ui::panel(x, y, w, h, ui::PANEL);
     ui::text(FONT_UI, x + 16, y + 10, d->name, ui::GOLD);
     char b[64];
@@ -395,6 +396,8 @@ Vec3 f_bobber;
 int f_spot = -1;
 u16 f_caught;
 }  // namespace
+
+int currentNode() { return g.mode == MODE_FISH ? f_spot : s_node; }
 
 void beginFishing(int node) {
     Node &n = g.nodes[node];
@@ -561,7 +564,7 @@ void drawFishingUi() {
     }
     char b[48];
     snprintf(b, sizeof(b), "Fishing Lv %d", skillLevel(SK_FISHING));
-    ui::text(FONT_SMALL, W - 24, 160, b, ui::TEXT_DIM, AL_RIGHT);
+    ui::text(FONT_SMALL, W - 24, 200, b, ui::TEXT_DIM, AL_RIGHT);
 }
 
 }  // namespace gather

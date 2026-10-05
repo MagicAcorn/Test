@@ -146,7 +146,7 @@ void update(f32 dt) {
     if (pad.pressed & BTN_UP) { s_sel = (s_sel + count - 1) % count; audio::sfx(SFX_UI_MOVE); }
     if (pad.pressed & BTN_DOWN) { s_sel = (s_sel + 1) % count; audio::sfx(SFX_UI_MOVE); }
     if (s_sel < s_scroll) s_scroll = s_sel;
-    if (s_sel >= s_scroll + 7) s_scroll = s_sel - 6;
+    if (s_sel >= s_scroll + 6) s_scroll = s_sel - 5;
     if (pad.pressed & (BTN_A | BTN_Y)) {
         if (s_tab == 0) {
             u16 it = STOCK[s_sel];
@@ -197,21 +197,21 @@ void drawUi() {
             const WorkOrder &o = g.pd.orders[k];
             f32 ry = y + 70 + k * 68;
             bool sel = k == s_sel;
-            ui::panel(x + 14, ry, 492, 60, sel ? ui::rgba(250, 236, 200, 240) : ui::rgba(236, 222, 190, 220), 6);
-            GXColor ink = ui::rgba(60, 40, 26);
+            ui::panel(x + 14, ry, 492, 60, sel ? ui::SEL : ui::rgba(44, 31, 22, 235), 6);
+            GXColor ink = ui::WHITE;
             if (!o.item) {
                 ui::text(FONT_UI, x + 30, ry + 18, "No order posted.", ink);
                 continue;
             }
             ui::icon(ITEMS[o.item].model, x + 46, ry + 30, 40, sel ? 1.2f : 0.3f);
             snprintf(b, sizeof(b), "Deliver %d %s", o.count, ITEMS[o.item].name);
-            ui::text(FONT_UI, x + 80, ry + 8, b, o.done ? ui::rgba(120, 110, 100) : ink);
+            ui::text(FONT_UI, x + 80, ry + 8, b, o.done ? ui::TEXT_DIM : ink);
             snprintf(b, sizeof(b), "%u coins  +  %u %s XP", o.coins, o.xp, SKILLS[o.skill].name);
-            ui::text(FONT_SMALL, x + 80, ry + 34, b, ui::rgba(130, 80, 30));
-            if (o.done) ui::text(FONT_BIG, x + 470, ry + 10, "DONE", ui::rgba(60, 140, 60), AL_RIGHT, 0.7f);
+            ui::text(FONT_SMALL, x + 80, ry + 34, b, ui::rgba(255, 222, 150));
+            if (o.done) ui::text(FONT_BIG, x + 490, ry + 10, "DONE", ui::GREEN, AL_RIGHT, 0.7f);
             else {
                 snprintf(b, sizeof(b), "%d/%d", hvMin<int>(g.pd.inv.count(o.item), o.count), o.count);
-                ui::text(FONT_UI, x + 490, ry + 18, b, g.pd.inv.count(o.item) >= o.count ? ui::rgba(40, 130, 40) : ink, AL_RIGHT);
+                ui::text(FONT_UI, x + 490, ry + 18, b, g.pd.inv.count(o.item) >= o.count ? ui::GREEN : ink, AL_RIGHT);
             }
         }
         f32 px = x;
@@ -227,7 +227,7 @@ void drawUi() {
     ui::panel(x + 296, y + 12, 70, 28, s_tab == 1 ? ui::SEL : ui::rgba(60, 54, 74, 220), 8);
     ui::text(FONT_SMALL, x + 331, y + 17, "Sell", ui::WHITE, AL_CENTER);
     int count = s_tab == 0 ? NSTOCK : s_sellCount;
-    for (int k = 0; k < 7 && s_scroll + k < count; k++) {
+    for (int k = 0; k < 6 && s_scroll + k < count; k++) {
         int i = s_scroll + k;
         f32 ry = y + 54 + k * 44;
         bool sel = i == s_sel;

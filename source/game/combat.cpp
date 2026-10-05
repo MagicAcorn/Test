@@ -27,6 +27,7 @@ struct Spawn {
     int count;
     int actor[8];
     f32 respawn[8];
+    u8 spawnedOnce;   // bit per slot: first spawn ignores the player-distance rule
 };
 Spawn s_spawns[48];
 int s_numSpawns = 0;
@@ -630,6 +631,7 @@ void init() {
         sp.pos = m.pos;
         sp.radius = m.radius;
         sp.count = hvClamp<int>((int)m.extra, 1, 8);
+        sp.spawnedOnce = 0;
         for (int k = 0; k < 8; k++) {
             sp.actor[k] = -1;
             sp.respawn[k] = 0.5f + k * 0.3f;
@@ -722,7 +724,11 @@ void update(f32 dt) {
             }
             if (!allowed) continue;
             sp.respawn[k] -= dt;
-            if (sp.respawn[k] <= 0 && distXZ(sp.pos, g.player.pos) > 18) spawnAt(sp, k);
+            bool first = !(sp.spawnedOnce & (1 << k));
+            if (sp.respawn[k] <= 0 && (first || distXZ(sp.pos, g.player.pos) > 18)) {
+                spawnAt(sp, k);
+                sp.spawnedOnce |= (u8)(1 << k);
+            }
         }
     }
     for (int i = 0; i < MAX_ACTORS; i++) {
@@ -780,6 +786,11 @@ void playerUpdate(f32 dt) {
             // no enemies: recentre the camera behind the player
             g.camYaw = p.yaw;
         }
+    }
+    // attacking with nothing targeted picks the closest enemy in reach
+    if (g.target < 0 && g.pd.weapon && !L && (pad.pressed & (BTN_A | BTN_X | BTN_Y))) {
+        int n = nearestEnemy(p.pos, 12.0f, -1);
+        if (n >= 0) g.target = n;
     }
     // casting
     if (g.castTimer > 0) {
@@ -958,14 +969,16 @@ void drawUi() {
     // target frame
     if (g.target >= 0) {
         Actor &t = g.actors[g.target];
-        f32 x = W * 0.5f - 150, y = 18;
-        ui::panel(x, y, 300, 52, ui::PANEL);
+        // between the player frame (left) and the minimap (right)
+        f32 tw = hvMin(300.0f, W - 150 - 268);
+        f32 x = 268, y = 18;
+        ui::panel(x, y, tw, 52, ui::PANEL);
         char b[64];
         snprintf(b, sizeof(b), "Lv %d  %s", t.level, t.name);
         ui::text(FONT_UI, x + 14, y + 6, b, t.enemyType == EN_BARROW_KING ? ui::GOLD : ui::WHITE);
-        ui::bar(x + 14, y + 32, 272, 9, (f32)t.hp / t.maxHp, ui::rgba(230, 70, 60));
+        ui::bar(x + 14, y + 32, tw - 28, 9, (f32)t.hp / t.maxHp, ui::rgba(230, 70, 60));
         snprintf(b, sizeof(b), "%d%%", t.hp * 100 / hvMax(1, t.maxHp));
-        ui::text(FONT_SMALL, x + 286, y + 8, b, ui::TEXT_DIM, AL_RIGHT);
+        ui::text(FONT_SMALL, x + tw - 14, y + 8, b, ui::TEXT_DIM, AL_RIGHT);
     }
     // cast bar
     if (g.castTimer > 0) {

@@ -25,6 +25,7 @@ static void *s_xfb[2];
 static int s_fb;
 static void *s_fifo;
 static u64 s_lastTime;
+static u64 s_frameStart;
 static f32 s_dt = 1.0f / 60.0f;
 static u32 s_frame;
 static u16 s_prevHeld;
@@ -104,6 +105,7 @@ void init() {
     GX_SetDispCopyGamma(GX_GM_1_0);
 
     s_lastTime = gettime();
+    s_frameStart = s_lastTime;
 }
 
 void shutdown() {
@@ -132,16 +134,35 @@ bool widescreen() {
 #endif
 }
 
+// Frame pacing: run at 60 fps, but if the CPU+GPU work for a frame keeps
+// overrunning a vsync, hold a steady 30 fps instead of juddering between the
+// two; go back up once there is clear headroom again.
+static bool s_halfRate = false;
+static int s_slowFrames = 0, s_fastFrames = 0;
+static u64 s_lastFlip;
+
 void endFrame() {
     GX_SetZMode(GX_TRUE, GX_LEQUAL, GX_TRUE);
     GX_SetColorUpdate(GX_TRUE);
     GX_CopyDisp(s_xfb[s_fb], GX_TRUE);
     GX_DrawDone();
+    f32 workMs = ticks_to_microsecs(gettime() - s_frameStart) / 1000.0f;
+    if (workMs > 16.2f) {
+        s_fastFrames = 0;
+        if (++s_slowFrames > 6) s_halfRate = true;
+    } else {
+        s_slowFrames = 0;
+        if (workMs < 12.5f && ++s_fastFrames > 180) s_halfRate = false;
+    }
     VIDEO_SetNextFramebuffer(s_xfb[s_fb]);
     VIDEO_Flush();
     VIDEO_WaitVSync();
+    // at half rate, make sure two fields have passed since the previous flip
+    if (s_halfRate && ticks_to_microsecs(gettime() - s_lastFlip) < 25000) VIDEO_WaitVSync();
+    s_lastFlip = gettime();
     s_fb ^= 1;
     u64 now = gettime();
+    s_frameStart = now;
     f32 dt = ticks_to_microsecs(now - s_lastTime) / 1000000.0f;
     s_lastTime = now;
     if (dt > 0.1f) dt = 0.1f;

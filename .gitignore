@@ -8,3 +8,5 @@ build/
 __pycache__/
 /pc/hearthvale_pc
 /build_wii/
+!/release/hearthvale_gc.dol
+!/release/apps/hearthvale/boot.dol

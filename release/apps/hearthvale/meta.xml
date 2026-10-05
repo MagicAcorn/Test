@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>Hearthvale</name>
+  <coder>Hearthvale team</coder>
+  <version>1.0</version>
+  <release_date>20261005</release_date>
+  <short_description>Cozy crafting adventure RPG</short_description>
+  <long_description>Rekindle the Great Hearth of Emberwick. Level ten skills - woodcutting, mining, fishing, herbalism, smithing, cooking, carpentry, alchemy, warrior and mage - in a stylized cel-shaded vale. Play with a GameCube controller (port 1) or a Classic Controller. Saves to SD:/apps/hearthvale/. Press HOME to save and exit.</long_description>
+  <no_ios_reload/>
+</app>

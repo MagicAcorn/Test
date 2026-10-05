@@ -194,6 +194,7 @@ void beginFishing(int node);
 void updateFishing(f32 dt);
 void drawFishingUi();
 void drawWorld();
+int currentNode();
 }
 namespace craft {
 void openStation(int stationType);

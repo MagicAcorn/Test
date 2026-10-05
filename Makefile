@@ -56,7 +56,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			-I$(CURDIR)/$(BUILD) -I$(LIBOGC_INC)
 export LIBPATHS	:=	-L$(LIBOGC_LIB) $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-.PHONY: $(BUILD) clean wii assets pc run-pc
+.PHONY: $(BUILD) clean wii assets pc run-pc release
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
@@ -92,3 +92,11 @@ $(OFILES_SOURCES) : $(HFILES)
 -include $(DEPENDS)
 
 endif
+
+# Refresh the prebuilt binaries in release/ (GameCube DOL + Homebrew Channel app)
+release:
+	@$(MAKE) --no-print-directory
+	@$(MAKE) --no-print-directory PLATFORM=wii
+	@mkdir -p release/apps/hearthvale
+	cp hearthvale.dol release/hearthvale_gc.dol
+	cp hearthvale_wii.dol release/apps/hearthvale/boot.dol

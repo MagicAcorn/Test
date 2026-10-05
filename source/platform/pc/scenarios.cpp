@@ -204,12 +204,13 @@ void scenarioTick() {
         if (f == 160 || f == 220) g.pad.pressed |= BTN_A;  // synthesis
     }
     if (is("combat") || is("magic") || is("barrow")) {
-        if (f == 30) g.pad.pressed |= BTN_Z;
+        if (f == 100) g.pad.pressed |= BTN_Z;
         if (f > 40 && f % 70 == 0) g.pad.pressed |= (f / 70) % 2 ? BTN_A : BTN_X;
         if (f == 200) g.pad.held |= BTN_R;
     }
     if (is("fish")) {
         if (f == 20) g.pad.pressed |= BTN_A;
     }
+    if (f % 120 == 0) printf("[scen] f %d mode %d region %d target %d combat %.1f hp %d\n", f, g.mode, g.currentRegion, g.target, g.combatTimer, g.player.hp);
 }
 #endif

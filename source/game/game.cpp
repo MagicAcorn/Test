@@ -213,6 +213,45 @@ static void updateCamera(f32 dt, bool userControl) {
     Vec3 tgt = p.pos + Vec3(0, 1.7f, 0);
     f32 cp = cosf(g.camPitch), sp = sinf(g.camPitch);
     Vec3 eye = tgt + Vec3(-sinf(g.camYaw) * cp * g.camDist, sp * g.camDist, -cosf(g.camYaw) * cp * g.camDist);
+    // framing shots: over the shoulder toward whoever / whatever the player works with
+    Vec3 focus;
+    f32 back = 0, side = 0, up = 0, toward = 0.5f, look = 1.0f;
+    bool framed = false;
+    if (g.mode == MODE_DIALOGUE) {
+        int a = npcs::actorForNpc(g.dialogueNpc);
+        if (a >= 0) {
+            focus = g.actors[a].pos;
+            back = 3.3f, side = 1.9f, up = 2.1f, toward = 0.72f, look = 0.85f;
+            framed = true;
+        }
+    } else if (g.mode == MODE_GATHER || g.mode == MODE_FISH) {
+        int n = gather::currentNode();
+        if (n >= 0) {
+            focus = g.nodes[n].pos;
+            back = 5.2f, side = 1.6f, up = 2.6f, toward = 0.3f, look = 1.2f;
+            framed = true;
+        }
+    } else if (g.mode == MODE_CRAFT || g.mode == MODE_CRAFT_SELECT) {
+        for (int i = 0; i < g.numStations; i++)
+            if (g.stations[i].type == g.stationOpen && distXZ(g.stations[i].pos, p.pos) < 8) {
+                focus = g.stations[i].pos;
+                back = 4.6f, side = 2.6f, up = 4.2f, toward = 0.55f, look = 0.4f;
+                framed = true;
+            }
+    }
+    if (framed) {
+        Vec3 d = focus - p.pos;
+        d.y = 0;
+        f32 len = d.lenXZ();
+        d = len > 0.01f ? d * (1.0f / len) : Vec3(sinf(p.yaw), 0, cosf(p.yaw));
+        Vec3 right(d.z, 0, -d.x);
+        // stay on whichever side the camera already is, so it never swings through the player
+        f32 sgn = dot(g.cam.eye - p.pos, right) >= 0 ? 1.0f : -1.0f;
+        eye = p.pos - d * back + right * (side * sgn) + Vec3(0, up, 0);
+        tgt = lerp(p.pos, focus, toward) + Vec3(0, look, 0);
+        tgt.y = hvMax(tgt.y, p.pos.y + look);
+        g.camYaw = atan2f(tgt.x - eye.x, tgt.z - eye.z);   // resume normal play from this angle
+    }
     f32 gy = g_world.groundHeight(eye.x, eye.z) + 0.8f;
     if (eye.y < gy) eye.y = gy;
     if (eye.y < g_world.waterLevel() + 0.6f) eye.y = g_world.waterLevel() + 0.6f;
@@ -370,6 +409,18 @@ static void updateRegion() {
         }
         g.currentRegion = best;
     }
+}
+
+// Background music follows the situation: battle > festival > night > place.
+static void updateMusic() {
+    if (g.mode == MODE_TITLE || g.mode == MODE_CREATE) return;
+    int want;
+    if (combat::inCombat()) want = MUS_BATTLE;
+    else if (g.pd.festival && g.currentRegion == 1) want = MUS_FESTIVAL;
+    else if (isNight()) want = MUS_NIGHT;
+    else if (g.currentRegion == 1 || g.currentRegion == 5) want = MUS_TOWN;
+    else want = MUS_FIELD;
+    audio::music(want);
 }
 
 // --------------------------------------------------------------- init
@@ -592,6 +643,7 @@ void gameFrame() {
         actors::update(g.player, dt, true);
         if (g.mode != MODE_CUTSCENE) updateCamera(dt, g.mode == MODE_PLAY || g.mode == MODE_DEAD);
         updateRegion();
+        updateMusic();
     }
     for (auto &t : g.toasts)
         if (t.timer > 0) t.timer -= dt;

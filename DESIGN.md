@@ -1,93 +1,50 @@
-# Design Draft — Working Title: *Hearthvale*
-
-> Status: **draft for agreement**. Nothing here is locked in yet.
+# Hearthvale — Game Design
 
 ## Pitch
+Hearthvale is a cozy, single-player "offline MMO" for the GameCube, which also runs on a modded Wii. You arrive in the Vale of Hearth as a new adventurer and grow through **ten skills**. Gathering feeds crafting, crafting feeds gear, and gear carries you through the story. The game takes its skill and crafting systems from FF14, its leveling grind from RuneScape, and its chunky, bright look from WoW and RuneScape: Dragonwilds. **It is not a survival game:** there is no hunger, no base upkeep and no punishing death.
 
-A single-player "offline MMO" for a modded Wii. You arrive in a frontier region
-as a new adventurer and build yourself up through **lots of skills**:
-gathering, crafting and combat. There are quests, towns full of NPCs, world
-events and gear progression. It's inspired by FF14's job and crafting
-systems, RuneScape's skill grind, and the chunky, colourful look of WoW and
-RuneScape: Dragonwilds.
+## Story
+The **Great Hearth** of Emberwick burned for three hundred years. When it went out, the crafting guilds scattered, and the dead beneath the **Old Barrow** began to wake. The main quest has eight chapters:
 
-**This is not a survival game.** There's no hunger, thirst or base-building.
-You progress through skills, quests and gear.
+1. **The Cold Hearth** — Wren the carpenter teaches woodcutting; craft oak kindling.
+2. **Bronze for the Grate** — mine copper and tin at Copperhill, smelt bronze, forge a hearth grate.
+3. **A Warm Meal** — fish Mirror Lake and cook trout for the town.
+4. **Remedies** — gather mint and brew potions for the watch.
+5. **Slime Season** — take up sword or staff and clear the meadows.
+6. **Rekindling** — lay the kindling and grate in the Hearth, which plays a cutscene. The Hearth now heals you and saves your game.
+7. **Restless Dead** — push back the skeletons at the Barrow.
+8. **The Barrow King** — a night-only boss with telegraphed attacks. Beating him starts the festival in town.
 
-## Platform
+Five side quests add more to do, such as Tam's golden carp and Fern's moonbloom, which only appears at night.
 
-| | |
-|---|---|
-| Target | Nintendo Wii (modded, Homebrew Channel), tested in Dolphin |
-| Output | `boot.dol` in `SD:/apps/hearthvale/`, saves on SD card |
-| Toolchain | devkitPPC + libogc (Wii target), C++ |
-| Hardware budget | 88 MB RAM, 729 MHz CPU, fixed-function GX GPU, 640×480 |
-| Controls | Wii Remote + Nunchuk (primary), GameCube controller, Classic Controller |
+## Skills
+Levels run from 1 to 30 on a RuneScape-shaped XP curve. Tools and recipes unlock tiers as you level.
 
-We'll use the Wii rather than GameCube mode because it gives us 3–4× the RAM,
-SD card storage and more controller options.
+| Gathering | Crafting | Combat |
+| --- | --- | --- |
+| Woodcutting, Mining, Fishing, Herbalism | Smithing, Cooking, Carpentry, Alchemy | Warrior, Mage |
 
-## Not building everything from scratch
+- **Gathering** works like FF14. Each node has an *integrity* (number of attempts), a success chance and HQ chance per item, and *GP abilities* (hold R) that raise yield or chance. Fishing is cast, wait, bite and hook, with time-of-day catches.
+- **Crafting** also works like FF14. Each synthesis tracks progress, quality, durability and CP, with random *conditions* and an *Inner Quiet* stack. There are 12 actions on the face buttons plus L/R sets. High-quality results sell for more and fill work orders.
+- **Combat** uses a cross hotbar. Z targets an enemy and A/X/Y run the weaponskill combo. R and L give a second job skill set and consumables, and B dodges. Enemies telegraph area attacks on the ground. Warrior and Mage are separate jobs you can swap between.
 
-| Need | Use |
-|---|---|
-| 3D models (characters, monsters, props, nature, buildings) | CC0 low-poly packs: **KayKit** (Adventurers, Dungeon, Forest, Medieval Hexagon), **Quaternius** (RPG characters, monsters, nature, buildings), **Kenney** |
-| Icons and UI | Kenney UI packs, CC0 RPG icon sets (OpenGameArt) |
-| Music and SFX | CC0/CC-BY packs from OpenGameArt / Kenney audio |
-| Graphics, input, audio | libogc (GX, WPAD/PAD, ASND), devkitPro portlibs (zlib, libpng) |
-| Asset conversion | Offline Python tool: glTF → compact binary meshes and skeletons, PNG → GX textures |
-| Game content | Data files (JSON → binary at build time) for items, recipes, skills, quests, NPCs, so adding content means editing data, not code |
+## The world
+The world is a 384×384 m vale with a day/night cycle (one in-game hour per real minute):
+- **Emberwick** — the town hub. It has the Hearth, the forge, the tavern, the market, the notice board and NPCs.
+- **Whisperwood** — oak, birch and willow, plus herbs.
+- **Copperhill Quarry** — ores from copper up to gold and crystal.
+- **Mirror Lake** and **the Emberrun** river — fishing.
+- **Hollis Farm**, **Sunny Meadows** — slimes, flowers, herbs.
+- **The Old Barrow** — skeletons, a crypt and the Barrow King (at night).
 
-These packs are low-poly with flat or gradient-texture shading. That fits the
-target art style and the Wii's polygon budget. Distance fog hides short draw
-distances, the same way WoW did it.
+The town feels lived in. A daily **market** shifts prices and the **notice board** posts three work orders each morning. Ten simulated **adventurers** gather, fight, craft and chat around you, and **world events** give bonus XP for a skill.
 
-## Core systems
+## Look
+The art is stylized and low-poly with cel shading: a toon ramp, rim light and a soft distance fog tinted to the sky. Sky colors follow the time of day, the sky has stars and 3D clouds, the water is depth-tinted with scrolling layers, and the grass sways in the wind. The characters, buildings and props are KayKit CC0 packs. Trees, ores, herbs, slimes, stations and item props are generated procedurally to match.
 
-### Skills (RuneScape-style XP, levels 1–50 for the first release)
-- **Gathering:** Woodcutting, Mining, Fishing, Herbalism
-- **Crafting:** Smithing, Carpentry, Cooking, Alchemy, Leatherworking
-- **Combat jobs:** Warrior (melee), Ranger (bow), Mage (staff)
-
-### FF14 influences
-- **Swap jobs by swapping gear.** Equip a pickaxe and you're a Miner. Equip a
-  staff and you're a Mage. Each job has its own level and hotbar.
-- **Crafting minigame.** It isn't just "click craft". Each craft has
-  *Progress*, *Quality* and *Durability* bars, and you spend *CP* on actions
-  such as Basic Synthesis, Careful Touch and Steady Hand. Higher levels
-  unlock more actions, and high-quality results give better items.
-- **Gathering minigame (light).** Each node has limited attempts, and you can
-  spend points on yield or quality buffs.
-- **Levequests / work orders.** Repeatable requests from town boards that
-  give XP and gil.
-
-### The "offline MMO" feel
-- Simulated NPC adventurers who wander, gather, fight and chat in towns.
-- World events (FATE-style), such as "Bandits are raiding the mill!"
-- A simulated market board with prices that drift and NPC buy/sell listings.
-- Main story quest plus side quests. Dungeons use a small AI party (tank,
-  healer, you).
-
-### Combat
-Tab-target and hotbar like an MMO, adapted for a controller: target with
-**Z**, abilities on **A/B/D-pad**, auto-attack, and cooldowns and a GCD like
-FF14. There are no twitch-dodging requirements, but enemy attacks are
-telegraphed with ground markers.
-
-## First milestone (vertical slice)
-
-One zone with one town, so we prove every system works before adding more:
-
-1. A character walks around a small low-poly zone with a camera and fog
-2. Woodcutting, Mining and Smithing all work, with XP and levels
-3. The crafting minigame for Smithing
-4. Inventory, equipment and job swap
-5. One combat job, 3 enemy types and 1 quest chain
-6. Save and load to SD card
-
-After that, we add skills, zones, dungeons and the market board one by one.
-
-## Open questions
-- Working title and setting: a generic high fantasy region, or something more specific?
-- Which controller do you mainly play with: Wiimote + Nunchuk or GameCube pad?
-- Should character creation be simple (pick a preset model and colours) or more detailed?
+## Technical budget (GameCube)
+- **Resolution:** 640×480 (or anamorphic 16:9). The target is 60 fps, with an automatic drop to a steady 30 fps if a scene overruns.
+- **Vertex load:** about 150k vertices per frame in the busiest view. This comes from triangle-strip display lists, two automatic LOD levels per heavy model, frustum and fog culling, and chunked terrain.
+- **Memory:** about 7 MB executable including all assets, out of 24 MB main RAM.
+- **Audio:** fully synthesized at boot. The music is played by a step sequencer, so the game ships no sample data.
+- **Saves:** memory card slot A on GameCube; SD card on the Wii build.
