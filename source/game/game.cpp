@@ -358,6 +358,7 @@ static void updatePlayer(f32 dt) {
     Vec3 right(-cosf(g.camYaw), 0, sinf(g.camYaw));
     f32 mag = sqrtf(pad.sx * pad.sx + pad.sy * pad.sy);
     if (mag > 1) mag = 1;
+    if (combat::wheelOpen()) mag = 0;   // the stick aims the skill wheel
     Vec3 dir = fwd * pad.sy + right * pad.sx;
     bool casting = g.castTimer > 0;
     bool locked = g.actionLock > 0 || p.dead;
@@ -370,18 +371,20 @@ static void updatePlayer(f32 dt) {
             g.castTimer = 0;   // moving interrupts a cast
             toast("Cast interrupted", ui::TEXT_DIM);
         }
-        speed = mag > 0.7f ? 7.2f : 3.2f * mag / 0.7f + 0.6f;
-        if (combat::inCombat()) speed *= 0.92f;
+        speed = mag > 0.7f ? 7.6f : 3.4f * mag / 0.7f + 0.6f;
+        if (g.guarding) speed *= 0.35f;
         Vec3 d = normalize(dir);
         p.vel = d * speed;
-        p.yaw = hvApproachAngle(p.yaw, atan2f(d.x, d.z), dt * 12.0f);
+        p.yaw = hvApproachAngle(p.yaw, atan2f(d.x, d.z), dt * (p.grounded ? 16.0f : 6.0f));
     } else {
         p.vel = lerp(p.vel, Vec3(), hvDamp(16.0f, dt));
     }
     actors::move(p, p.vel, dt);
     // locomotion animation (unless an action clip is playing)
     bool busy = (p.anim.cur && !p.anim.cur->loop && !p.anim.finished()) || g.actionLock > 0;
-    if (!busy && !p.dead) {
+    if (!p.grounded) {
+        if (!busy) p.play("jump_idle", 0.15f);
+    } else if (!busy && !p.dead) {
         f32 v = p.vel.lenXZ();
         bool armed = combat::inCombat();
         if (v > 4.5f) p.play("run", 0.15f, false, hvClamp(v / 7.2f, 0.8f, 1.2f));
@@ -392,15 +395,18 @@ static void updatePlayer(f32 dt) {
 
     updateInteraction();
     bool hasTarget = g.target >= 0 && g.actors[g.target].active && !g.actors[g.target].dead;
-    // A: interact when not fighting a target
-    if ((pad.pressed & BTN_A) && !(pad.held & (BTN_L | BTN_R)) && !hasTarget && g.interact != Game::IK_NONE && !locked) doInteract();
-    if (pad.pressed & BTN_START) {
-        g.mode = MODE_MENU;
-        g.menuTab = 0;
-        g.menuSel = 0;
-        audio::sfx(SFX_UI_OK);
+    (void)hasTarget;
+    // A: talk / gather / use what's in front of you, otherwise jump
+    if ((pad.pressed & BTN_A) && !combat::wheelOpen() && !locked) {
+        if (g.interact != Game::IK_NONE && p.grounded) doInteract();
+        else if (p.grounded && !g.guarding && g.castTimer <= 0) {
+            p.vy = 9.2f;
+            p.grounded = false;
+            p.play("jump_start", 0.05f, true, 1.6f);
+            audio::sfx(SFX_SWING, 0.5f, 0.6f);
+        }
     }
-    if ((pad.pressed & BTN_Y) && !(pad.held & (BTN_L | BTN_R)) && !hasTarget) {
+    if (pad.pressed & BTN_START) {
         g.mode = MODE_MENU;
         g.menuTab = 0;
         g.menuSel = 0;
@@ -668,11 +674,12 @@ void gameFrame() {
             g.player.vel = Vec3();
         }
         if (!worldPaused) {
-            nodes::update(dt);
-            npcs::update(dt);
-            sim::update(dt);
-            combat::update(dt);
-            fx::update(dt);
+            f32 wdt = dt * combat::timeScale();
+            nodes::update(wdt);
+            npcs::update(wdt);
+            sim::update(wdt);
+            combat::update(wdt);
+            fx::update(wdt);
         }
         actors::update(g.player, dt, true);
         if (g.mode != MODE_CUTSCENE) updateCamera(dt, g.mode == MODE_PLAY || g.mode == MODE_DEAD);

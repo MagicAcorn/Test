@@ -102,40 +102,22 @@ void tracker() {
 }
 
 void hotbar() {
-    bool L = (g.pad.held & BTN_L) != 0, R = (g.pad.held & BTN_R) != 0;
-    bool fighting = g.target >= 0 || combat::inCombat();
     if (!g.pd.weapon) return;
-    if (!fighting && !L && !R) return;
-    f32 cx = W() * 0.5f, cy = H() - 62;
-    ui::panel(cx - 170, cy - 30, 340, 64, ui::rgba(20, 18, 28, 190), 14);
-    Glyph gl[4] = {GL_A, GL_X, GL_Y, GL_B};
-    static const char *const ITEMS_L[4] = {"Heal", "Tonic", "Draught", ""};
-    for (int k = 0; k < 4; k++) {
-        f32 x = cx - 160 + k * 82;
+    bool fighting = g.target >= 0 || combat::inCombat();
+    if (!fighting || combat::wheelOpen()) return;
+    bool mage = g.pd.job == SK_MAGE;
+    struct Entry {
+        Glyph gl;
         const char *name;
-        bool ok = true;
-        f32 cd = 0;
-        if (L) {
-            name = ITEMS_L[k];
-            ok = k < 3;
-        } else {
-            int i = R ? k + 4 : k;
-            if (!R && k == 3) {
-                name = "Dodge";
-            } else {
-                name = combat::abilityName(i);
-                ok = skillLevel(g.pd.job) >= combat::abilityLevel(i);
-                cd = combat::abilityCooldown(i);
-            }
-            if (!R && g.pd.job == SK_WARRIOR && ((k == 1 && g.combo == 1) || (k == 2 && g.combo == 2))) {
-                ui::panel(x - 2, cy - 26, 80, 54, ui::rgba(255, 210, 120, 90), 10);
-            }
-        }
-        ui::glyph(gl[k], x + 2, cy - 22, 26, ok ? 255 : 90);
-        if (cd > 0) ui::rect(x + 2, cy - 22 + 26 * (1 - cd), 26, 26 * cd, ui::rgba(0, 0, 0, 150));
-        ui::textWrap(FONT_SMALL, x, cy + 6, 80, name, ok ? ui::WHITE : ui::TEXT_DIM, 0.85f);
+    } e[5] = {{GL_B, "Attack"}, {GL_X, mage ? "Blink" : "Roll"}, {GL_Y, combat::quickItemName()}, {GL_L, "Guard"}, {GL_R, "Skills"}};
+    f32 cx = W() * 0.5f, cy = H() - 50;
+    f32 w = 5 * 86 + 16;
+    ui::panel(cx - w * 0.5f, cy - 24, w, 48, ui::rgba(20, 18, 28, 180), 14);
+    for (int k = 0; k < 5; k++) {
+        f32 x = cx - w * 0.5f + 12 + k * 86;
+        ui::glyph(e[k].gl, x, cy - 13, 26);
+        ui::text(FONT_SMALL, x + 30, cy - 9, e[k].name, ui::WHITE);
     }
-    ui::text(FONT_SMALL, cx, cy - 46, R ? "R  Job skills" : (L ? "L  Items" : "Hold L / R for more"), ui::TEXT_DIM, AL_CENTER);
 }
 
 void interactPrompt() {

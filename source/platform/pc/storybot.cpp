@@ -401,22 +401,18 @@ bool fight(int enemyType) {
     }
     // heal when low
     if (g.player.hp < g.player.maxHp / 3 && s_wait <= 0) {
-        g.pad.held |= BTN_L;
-        press(BTN_A, 30);
+        press(BTN_Y, 30);   // quick heal item
         return false;
     }
-    if (g.target != best) {
-        if (bd < 24) press(BTN_Z, 10);
-        else walkTo(g.actors[best].pos, 3.0f);
+    if (g.target != best && bd < 24) {
+        press(BTN_Z, 10);
         return false;
     }
     f32 reach = g.pd.job == SK_MAGE ? 12.0f : 2.2f;
     if (!walkTo(g.actors[best].pos, reach)) return false;
-    static int k = 0;
-    if (s_wait <= 0) {
-        static const u16 seq[3] = {BTN_A, BTN_X, BTN_Y};
-        press(seq[k++ % 3], 24);
-    }
+    // face it, then mash B (basic combo)
+    g.pad.sx = g.pad.sy = 0;
+    press(BTN_B, 14);
     return false;
 }
 

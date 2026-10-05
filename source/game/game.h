@@ -123,6 +123,7 @@ struct Game {
     f32 dodgeTimer = 0;
     Vec3 dodgeDir;
     f32 actionLock = 0;      // can't move while > 0 (gather swing etc.)
+    bool guarding = false;   // holding L in combat
 
     // interaction
     enum InteractKind : u8 { IK_NONE, IK_NPC, IK_NODE, IK_STATION, IK_FISH, IK_ENEMY };
@@ -245,6 +246,10 @@ int spawnEnemy(int type, const Vec3 &pos, int spawnIndex);
 void clearTarget();
 bool inCombat();
 int nearestEnemy(const Vec3 &p, f32 maxDist, int skip);
+bool wheelOpen();          // R held: skill wheel shown, world in slow motion
+f32 timeScale();
+const char *quickItemName();
+int quickSlot();
 }
 namespace sim {
 void init();

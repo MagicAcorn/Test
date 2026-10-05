@@ -48,6 +48,9 @@ CLIPS = {
     'chair_sit': ('Sit_Chair_Idle', True),
     'throw': ('Throw', False),
     'jump': ('Jump_Full_Short', False),
+    'jump_start': ('Jump_Start', False),
+    'jump_idle': ('Jump_Idle', True),
+    'jump_land': ('Jump_Land', False),
     'lie': ('Lie_Idle', True),
 }
 SKEL_CLIPS = {

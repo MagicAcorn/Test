@@ -201,6 +201,8 @@ void scenarioTick() {
             }
         } else if (is("quests")) {
             questLogicTest();
+        } else if (is("jump")) {
+            teleport(Vec3(196, 0, 214), 3.14f);
         } else if (is("bridge")) {
             teleport(Vec3(236, 0, 183), 0.9f);
             g.camDist = 15;
@@ -250,8 +252,17 @@ void scenarioTick() {
     }
     if (is("combat") || is("magic") || is("barrow")) {
         if (f == 100) g.pad.pressed |= BTN_Z;
-        if (f > 40 && f % 70 == 0) g.pad.pressed |= (f / 70) % 2 ? BTN_A : BTN_X;
-        if (f == 200) g.pad.held |= BTN_R;
+        if (f > 110 && f < 380 && f % 24 == 0) g.pad.pressed |= BTN_B;
+        if (f >= 400 && f <= 460) {   // skill wheel: hold R, tilt toward the second slot
+            g.pad.held |= BTN_R;
+            if (f == 400) g.pad.pressed |= BTN_R;
+            g.pad.sx = 0.8f;
+            g.pad.sy = 0.5f;
+        }
+    }
+    if (is("jump")) {
+        if (f == 30) g.pad.pressed |= BTN_A, g.pad.held |= BTN_A;
+        if (f > 30 && f < 60) g.pad.sy = 1.0f;
     }
     if (is("fish")) {
         if (f == 20) g.pad.pressed |= BTN_A;

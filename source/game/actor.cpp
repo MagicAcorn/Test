@@ -1,4 +1,5 @@
 #include "game/actor.h"
+#include "game/game.h"
 #include <stdio.h>
 #include "game/world.h"
 #include "gfx/renderer.h"
@@ -152,6 +153,22 @@ void move(Actor &a, const Vec3 &desired, f32 dt) {
     }
     g_world.resolveCircle(np, a.radius * a.scale);
     f32 g = g_world.groundHeight(np.x, np.z, p.y + 0.5f);
+    if (!a.grounded) {
+        // airborne: ballistic until we land
+        a.vy -= 27.0f * dt;
+        np.y = p.y + a.vy * dt;
+        if (np.y <= g && a.vy <= 0) {
+            np.y = g;
+            a.vy = 0;
+            a.grounded = true;
+            if (a.kind == AK_PLAYER) {
+                a.play("jump_land", 0.05f, true, 1.8f);
+                audio::sfx(SFX_STEP, 0.9f, 0.8f);
+            }
+        }
+        a.pos = np;
+        return;
+    }
     // gravity / step
     if (g >= np.y - 0.05f || a.grounded) {
         if (g - p.y > 1.6f) {

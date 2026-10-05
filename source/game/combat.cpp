@@ -52,8 +52,20 @@ struct EnemyAI {
     bool aggro = false;
     bool summoned = false;
     f32 hpBarTimer = 0;
+    f32 stagger = 0;   // stunned: no moving or attacking
 };
 EnemyAI s_ai[MAX_ACTORS];
+
+// player action-combat state
+f32 s_atkTimer = 0;        // time until the next basic attack may start
+int s_atkStep = 0;         // 0..2 within the combo
+f32 s_atkWindow = 0;       // combo continues while > 0
+bool s_atkQueued = false;  // B pressed during the current swing
+bool s_wheelOpen = false;
+int s_wheelSel = -1;
+f32 s_wheelAnim = 0;
+int s_quickSlot = 0;       // Y item: 0 heal, 1 tonic, 2 draught
+const int WHEEL[6] = {1, 2, 4, 5, 6, 7};
 
 struct Projectile {
     bool active;
@@ -78,7 +90,7 @@ struct Aoe {
 Aoe s_aoe[16];
 
 const Texture *s_aoeTex, *s_targetTex;
-f32 s_autoTimer = 0;
+
 
 int allocActor() {
     for (int i = 0; i < MAX_ACTORS; i++)
@@ -215,6 +227,11 @@ void updateEnemy(int ai, f32 dt) {
             hitEnemy(ai, e.dotDmg, false, FX_BOLT);
             if (a.dead) return;
         }
+    }
+    if (e.stagger > 0 && !a.dead) {
+        e.stagger -= dt;
+        a.vel = Vec3();
+        return;
     }
     f32 speed = d.speed * (e.slow > 0 ? 0.55f : 1.0f);
     switch (e.state) {
@@ -442,25 +459,27 @@ struct Ability {
     f32 range;
     bool needsTarget;
 };
+// Slot 0 is the basic attack (B); 1,2,4,5,6,7 sit on the skill wheel (hold R);
+// slot 3 is the evade on X.
 const Ability WAR[8] = {
-    {"Heavy Swing", 1, 0, 0, 0, 3.4f, true},
-    {"Skull Sunder", 1, 0, 0, 0, 3.4f, true},
-    {"Butcher's Block", 1, 0, 0, 0, 3.4f, true},
-    {"Dodge", 1, 0, 0, 0, 0, false},
-    {"Overpower", 6, 0, 0, 10, 0, false},
-    {"Rampart", 4, 0, 0, 45, 0, false},
-    {"Second Wind", 2, 0, 0, 60, 0, false},
-    {"Tomahawk", 8, 0, 0, 8, 20, true},
+    {"Strike", 1, 0, 0, 0, 3.4f, false},
+    {"Skull Sunder", 1, 0, 0, 5, 3.6f, true},
+    {"Butcher's Block", 2, 0, 0, 9, 3.6f, true},
+    {"Roll", 1, 0, 0, 0, 0, false},
+    {"Overpower", 3, 0, 0, 10, 0, false},
+    {"Rampart", 4, 0, 0, 40, 0, false},
+    {"Second Wind", 1, 0, 0, 45, 0, false},
+    {"Tomahawk", 5, 0, 0, 7, 20, true},
 };
 const Ability MAG[8] = {
-    {"Fire", 1, 24, 1.4f, 0, 24, true},
-    {"Blizzard", 1, 16, 0, 0, 24, true},
-    {"Thunder", 5, 28, 0, 0, 24, true},
-    {"Dodge", 1, 0, 0, 0, 0, false},
-    {"Firestorm", 10, 50, 2.0f, 6, 24, true},
-    {"Cure", 2, 30, 1.2f, 0, 0, false},
-    {"Aether Ward", 12, 40, 0, 40, 0, false},
-    {"Blink", 8, 0, 0, 12, 0, false},
+    {"Spark", 1, 0, 0, 0, 22, false},
+    {"Fire", 1, 24, 1.0f, 2.5f, 24, true},
+    {"Blizzard", 1, 16, 0, 3.0f, 24, true},
+    {"Blink", 1, 0, 0, 0, 0, false},
+    {"Thunder", 3, 28, 0, 8, 24, true},
+    {"Firestorm", 5, 50, 1.6f, 10, 24, true},
+    {"Cure", 1, 30, 1.0f, 6, 0, false},
+    {"Aether Ward", 4, 40, 0, 35, 0, false},
 };
 
 const Ability &abilityDef(int i) { return g.pd.job == SK_MAGE ? MAG[i] : WAR[i]; }
@@ -474,32 +493,20 @@ void executeAbility(int i) {
     if (tgt) p.yaw = yawTo(p.pos, tgt->pos);
     if (ab.mp) p.mp -= ab.mp;
     if (ab.cooldown > 0) g.cooldowns[i] = ab.cooldown;
-    else if (i != 3) g.gcd = 2.2f;
+    else if (i != 3) g.gcd = 0.8f;
     g.combatTimer = 6.0f;
     if (!mage) {
         switch (i) {
-            case 0:
-                p.play("slash", 0.08f, true, 1.2f);
-                dealPlayerHit(t, 1.0f, FX_HIT);
-                g.combo = 1;
-                g.comboTimer = 8;
+            case 1:   // Skull Sunder: heavy blow that staggers
+                p.play("slash_h", 0.06f, true, 1.3f);
+                dealPlayerHit(t, 1.9f, FX_HIT);
+                if (tgt) s_ai[t].stagger = 1.2f;
                 break;
-            case 1:
-                p.play("slash_h", 0.08f, true, 1.2f);
-                dealPlayerHit(t, g.combo == 1 ? 1.6f : 0.8f, FX_HIT);
-                g.combo = g.combo == 1 ? 2 : 0;
-                g.comboTimer = 8;
-                break;
-            case 2:
-                p.play("heavy", 0.08f, true, 1.3f);
-                if (g.combo == 2) {
-                    dealPlayerHit(t, 2.4f, FX_SPARK);
-                    p.hp = hvMin(p.maxHp, p.hp + p.maxHp / 25);
-                    fx::burst(p.pos + Vec3(0, 1, 0), FX_HEAL, 8);
-                } else {
-                    dealPlayerHit(t, 0.9f, FX_HIT);
-                }
-                g.combo = 0;
+            case 2:   // Butcher's Block: big hit that heals
+                p.play("heavy", 0.06f, true, 1.35f);
+                dealPlayerHit(t, 2.4f, FX_SPARK);
+                p.hp = hvMin(p.maxHp, p.hp + p.maxHp / 12);
+                fx::burst(p.pos + Vec3(0, 1, 0), FX_HEAL, 10);
                 break;
             case 4:
                 p.play("spin", 0.08f, true, 1.3f);
@@ -527,53 +534,43 @@ void executeAbility(int i) {
         audio::sfx(SFX_SWING, 1.0f, 0.9f + frand() * 0.2f);
     } else {
         switch (i) {
-            case 0:
-                p.play("cast", 0.08f, true);
-                projectile(p.handPos(), t, 0, playerDamage(1.7f), true);
+            case 1:   // Fire
+                p.play("cast", 0.06f, true);
+                projectile(p.handPos(), t, 0, playerDamage(2.0f), true);
                 audio::sfx(SFX_FIRE);
                 break;
-            case 1:
-                p.play("cast", 0.08f, true, 1.3f);
-                projectile(p.handPos(), t, 1, playerDamage(1.1f), true);
+            case 2:   // Blizzard: freezes in place
+                p.play("cast", 0.06f, true, 1.3f);
+                projectile(p.handPos(), t, 1, playerDamage(1.3f), true);
+                if (tgt) s_ai[t].stagger = 2.0f;
                 audio::sfx(SFX_ICE);
                 break;
-            case 2:
-                p.play("cast_raise", 0.08f, true, 1.4f);
+            case 4:   // Thunder: damage over time
+                p.play("cast_raise", 0.06f, true, 1.4f);
                 if (tgt) {
-                    dealPlayerHit(t, 0.7f, FX_BOLT);
+                    dealPlayerHit(t, 0.8f, FX_BOLT);
                     s_ai[t].dotTimer = 15.0f;
                     s_ai[t].dotTick = 3.0f;
-                    s_ai[t].dotDmg = playerDamage(0.3f);
+                    s_ai[t].dotDmg = playerDamage(0.35f);
                 }
                 audio::sfx(SFX_FIRE, 0.8f, 1.4f);
                 break;
-            case 4:
-                p.play("cast_long", 0.08f, true, 1.4f);
-                if (tgt) fx::aoe(tgt->pos, 6.0f, 0.6f, playerDamage(1.5f), FX_FIRE, false);
+            case 5:   // Firestorm
+                p.play("cast_long", 0.06f, true, 1.4f);
+                if (tgt) fx::aoe(tgt->pos, 6.0f, 0.6f, playerDamage(1.7f), FX_FIRE, false);
                 audio::sfx(SFX_FIRE);
                 break;
-            case 5:
-                p.play("cast_raise", 0.08f, true);
-                p.hp = hvMin(p.maxHp, p.hp + p.maxHp * 28 / 100);
+            case 6:   // Cure
+                p.play("cast_raise", 0.06f, true);
+                p.hp = hvMin(p.maxHp, p.hp + p.maxHp * 30 / 100);
                 fx::burst(p.pos + Vec3(0, 1, 0), FX_HEAL, 24);
                 audio::sfx(SFX_HEAL);
                 break;
-            case 6:
+            case 7:   // Aether Ward
                 g.wardShield = (f32)(p.maxHp / 5);
                 fx::burst(p.pos + Vec3(0, 1, 0), FX_MAGIC, 24);
                 toast("Aether Ward", ui::BLUE);
                 break;
-            case 7: {
-                Vec3 back(-sinf(p.yaw), 0, -cosf(p.yaw));
-                Vec3 np = p.pos + back * 9.0f;
-                if (g_world.walkable(np.x, np.z, p.pos.y)) {
-                    fx::burst(p.pos + Vec3(0, 1, 0), FX_MAGIC, 14);
-                    p.pos = np;
-                    p.pos.y = g_world.groundHeight(np.x, np.z);
-                    fx::burst(p.pos + Vec3(0, 1, 0), FX_MAGIC, 14);
-                }
-                break;
-            }
         }
     }
 }
@@ -670,6 +667,11 @@ int nearestEnemy(const Vec3 &p, f32 maxDist, int skip) {
 }
 
 void damagePlayer(int amount, int source) {
+    if (g.guarding) {
+        amount = amount * 35 / 100;
+        g.player.play("block_hit", 0.05f, true, 1.4f);
+        fx::burst(g.player.pos + Vec3(0, 1.2f, 0), FX_SPARK, 6);
+    }
     Actor &p = g.player;
     if (p.dead || g.mode == MODE_CUTSCENE) return;
     if (g.dodgeTimer > 0) {
@@ -771,11 +773,149 @@ void update(f32 dt) {
     }
 }
 
+// Best enemy to swing or cast at: the locked target if close enough, else the
+// nearest enemy roughly in front of the player (or anywhere very close).
+static int autoAim(f32 range) {
+    Actor &p = g.player;
+    if (g.target >= 0) {
+        Actor &t = g.actors[g.target];
+        if (t.active && !t.dead && distXZ(t.pos, p.pos) <= range + t.radius) return g.target;
+    }
+    Vec3 fwd(sinf(p.yaw), 0, cosf(p.yaw));
+    int best = -1;
+    f32 bs = 1e9f;
+    for (int i = 0; i < MAX_ACTORS; i++) {
+        Actor &a = g.actors[i];
+        if (!a.active || a.kind != AK_ENEMY || a.dead) continue;
+        Vec3 d = a.pos - p.pos;
+        d.y = 0;
+        f32 dist = d.lenXZ();
+        if (dist > range + a.radius) continue;
+        f32 facing = dist > 0.01f ? dot(d, fwd) / dist : 1.0f;
+        if (facing < -0.2f && dist > 2.5f) continue;
+        f32 score = dist * (2.0f - facing);
+        if (score < bs) bs = score, best = i;
+    }
+    return best;
+}
+
+static bool tryAbility(int i) {
+    Actor &p = g.player;
+    const Ability &ab = abilityDef(i);
+    if (skillLevel(g.pd.job) < ab.level) {
+        toast("Not learned yet", ui::RED);
+        audio::sfx(SFX_FAIL);
+        return false;
+    }
+    if (ab.cooldown > 0 && g.cooldowns[i] > 0) {
+        audio::sfx(SFX_FAIL, 0.5f);
+        return false;
+    }
+    if (p.mp < ab.mp) {
+        toast("Not enough MP", ui::RED);
+        audio::sfx(SFX_FAIL);
+        return false;
+    }
+    if (ab.needsTarget) {
+        int t = autoAim(ab.range);
+        if (t < 0) {
+            toast("No enemy in reach", ui::TEXT_DIM);
+            return false;
+        }
+        g.target = t;
+    }
+    if (ab.cast > 0) {
+        g.castTimer = g.castTotal = ab.cast;
+        g.castAbility = (u8)i;
+        p.play("casting", 0.1f);
+        if (ab.cooldown > 0) g.cooldowns[i] = ab.cooldown;
+        return true;
+    }
+    executeAbility(i);
+    return true;
+}
+
+static void basicAttack() {
+    Actor &p = g.player;
+    bool mage = g.pd.job == SK_MAGE;
+    int t = autoAim(mage ? 22.0f : 4.5f);
+    if (t >= 0) p.yaw = yawTo(p.pos, g.actors[t].pos);
+    int step = s_atkWindow > 0 ? s_atkStep : 0;
+    static const f32 POT_W[3] = {0.8f, 0.9f, 1.6f};
+    static const char *const ANIM_W[3] = {"slash", "slash_h", "heavy"};
+    g.combatTimer = 6.0f;
+    if (!mage) {
+        p.play(ANIM_W[step], 0.05f, true, step == 2 ? 1.45f : 1.7f);
+        // lunge a little and hit everything in a frontal arc
+        Vec3 fwd(sinf(p.yaw), 0, cosf(p.yaw));
+        p.vel = fwd * (step == 2 ? 6.0f : 3.5f);
+        f32 reach = step == 2 ? 3.8f : 3.2f;
+        for (int k = 0; k < MAX_ACTORS; k++) {
+            Actor &a = g.actors[k];
+            if (!a.active || a.kind != AK_ENEMY || a.dead) continue;
+            Vec3 d = a.pos - p.pos;
+            d.y = 0;
+            f32 dist = d.lenXZ();
+            if (dist > reach + a.radius) continue;
+            if (dist > 0.8f && dot(d, fwd) / dist < 0.25f) continue;
+            dealPlayerHit(k, POT_W[step], step == 2 ? FX_SPARK : FX_HIT);
+            if (step == 2) s_ai[k].stagger = hvMax(s_ai[k].stagger, 0.45f);
+        }
+        audio::sfx(SFX_SWING, 1.0f, 0.9f + step * 0.08f);
+        s_atkTimer = step == 2 ? 0.62f : 0.36f;
+    } else {
+        p.play("cast", 0.05f, true, 1.8f);
+        if (t >= 0) projectile(p.handPos(), t, step == 2 ? 3 : 2, playerDamage(step == 2 ? 1.3f : 0.6f), true);
+        else fx::burst(p.handPos(), FX_MAGIC, 6);
+        audio::sfx(SFX_ICE, 0.6f, 1.6f + step * 0.1f);
+        s_atkTimer = step == 2 ? 0.55f : 0.32f;
+    }
+    s_atkStep = (step + 1) % 3;
+    s_atkWindow = s_atkTimer + 0.55f;
+}
+
+static void evade() {
+    Actor &p = g.player;
+    if (g.pd.job == SK_MAGE) {
+        // Blink: a short teleport in the stick direction (or backwards)
+        if (g.cooldowns[3] > 0) return;
+        Vec3 fwd(sinf(g.camYaw), 0, cosf(g.camYaw)), right(-cosf(g.camYaw), 0, sinf(g.camYaw));
+        Vec3 d = fwd * g.pad.sy + right * g.pad.sx;
+        if (d.lenXZ() < 0.2f) d = Vec3(-sinf(p.yaw), 0, -cosf(p.yaw));
+        d = normalize(d);
+        for (f32 dist = 8.0f; dist > 2.0f; dist -= 1.0f) {
+            Vec3 np = p.pos + d * dist;
+            if (!g_world.walkable(np.x, np.z, p.pos.y)) continue;
+            fx::burst(p.pos + Vec3(0, 1, 0), FX_MAGIC, 14);
+            p.pos = np;
+            p.pos.y = g_world.groundHeight(np.x, np.z);
+            g_world.resolveCircle(p.pos, p.radius);
+            fx::burst(p.pos + Vec3(0, 1, 0), FX_MAGIC, 14);
+            g.dodgeTimer = 0.0f;
+            g.cooldowns[3] = 2.0f;
+            audio::sfx(SFX_ICE, 0.7f, 1.8f);
+            return;
+        }
+        return;
+    }
+    if (g.dodgeTimer > 0 || g.cooldowns[3] > 0) return;
+    Vec3 fwd(sinf(g.camYaw), 0, cosf(g.camYaw)), right(-cosf(g.camYaw), 0, sinf(g.camYaw));
+    Vec3 d = fwd * g.pad.sy + right * g.pad.sx;
+    if (d.lenXZ() < 0.2f) d = Vec3(sinf(p.yaw), 0, cosf(p.yaw));
+    g.dodgeDir = normalize(d);
+    g.dodgeTimer = 0.35f;
+    g.cooldowns[3] = 0.75f;
+    p.yaw = atan2f(g.dodgeDir.x, g.dodgeDir.z);
+    p.play("roll", 0.04f, true, 1.6f);
+    audio::sfx(SFX_SWING, 0.7f, 0.7f);
+}
+
 void playerUpdate(f32 dt) {
     Actor &p = g.player;
     PadState &pad = g.pad;
-    bool L = (pad.held & BTN_L) != 0, R = (pad.held & BTN_R) != 0;
-    // targeting
+    if (s_atkTimer > 0) s_atkTimer -= dt;
+    if (s_atkWindow > 0) s_atkWindow -= dt;
+    // Z: lock on / cycle targets (re-centre the camera when nothing is around)
     if (pad.pressed & BTN_Z) {
         int n = nearestEnemy(p.pos, 26.0f, g.target);
         if (n < 0 && g.target >= 0) g.target = -1;
@@ -783,14 +923,37 @@ void playerUpdate(f32 dt) {
             g.target = n;
             audio::sfx(SFX_UI_MOVE);
         } else {
-            // no enemies: recentre the camera behind the player
             g.camYaw = p.yaw;
         }
     }
-    // attacking with nothing targeted picks the closest enemy in reach
-    if (g.target < 0 && g.pd.weapon && !L && (pad.pressed & (BTN_A | BTN_X | BTN_Y))) {
-        int n = nearestEnemy(p.pos, 12.0f, -1);
-        if (n >= 0) g.target = n;
+    // D-pad left/right picks the quick item on Y
+    if (pad.pressed & BTN_RIGHT) s_quickSlot = (s_quickSlot + 1) % 3, audio::sfx(SFX_UI_MOVE);
+    if (pad.pressed & BTN_LEFT) s_quickSlot = (s_quickSlot + 2) % 3, audio::sfx(SFX_UI_MOVE);
+    if (pad.pressed & BTN_Y) useConsumable(s_quickSlot);
+    // skill wheel: hold R, aim the stick at a skill, release R to use it
+    bool R = (pad.held & BTN_R) != 0;
+    if (s_wheelOpen) {
+        s_wheelAnim = hvMin(1.0f, s_wheelAnim + dt * 8.0f);
+        f32 mag = sqrtf(pad.sx * pad.sx + pad.sy * pad.sy);
+        if (mag > 0.5f) {
+            f32 a = atan2f(pad.sx, pad.sy);   // 0 = up, clockwise
+            if (a < 0) a += HV_TAU;
+            int sel = (int)((a + HV_TAU / 12.0f) / (HV_TAU / 6.0f)) % 6;
+            if (sel != s_wheelSel) audio::sfx(SFX_UI_MOVE, 0.6f);
+            s_wheelSel = sel;
+        }
+        if (!R) {
+            s_wheelOpen = false;
+            if (s_wheelSel >= 0) tryAbility(WHEEL[s_wheelSel]);
+        }
+        return;
+    }
+    if ((pad.pressed & BTN_R) && g.pd.weapon && g.castTimer <= 0) {
+        s_wheelOpen = true;
+        s_wheelSel = -1;
+        s_wheelAnim = 0;
+        audio::sfx(SFX_UI_OK, 0.6f);
+        return;
     }
     // casting
     if (g.castTimer > 0) {
@@ -799,70 +962,32 @@ void playerUpdate(f32 dt) {
         return;
     }
     if (g.pd.weapon == 0) return;
-    // consumables
-    if (L && !R) {
-        if (pad.pressed & BTN_A) useConsumable(0);
-        if (pad.pressed & BTN_X) useConsumable(1);
-        if (pad.pressed & BTN_Y) useConsumable(2);
+    // L: guard
+    g.guarding = (pad.held & BTN_L) && g.dodgeTimer <= 0 && !p.dead;
+    if (g.guarding) {
+        if (!p.anim.cur || p.anim.cur->loop) p.play("block", 0.1f);
         return;
     }
-    // dodge (B, or R+B for warrior Tomahawk / mage Blink)
-    if ((pad.pressed & BTN_B) && !R && g.dodgeTimer <= 0 && g.cooldowns[3] <= 0 && (g.target >= 0 || inCombat())) {
-        Vec3 fwd(sinf(g.camYaw), 0, cosf(g.camYaw)), right(-cosf(g.camYaw), 0, sinf(g.camYaw));
-        Vec3 d = fwd * pad.sy + right * pad.sx;
-        if (d.lenXZ() < 0.2f) d = Vec3(-sinf(p.yaw), 0, -cosf(p.yaw));
-        g.dodgeDir = normalize(d);
-        g.dodgeTimer = 0.35f;
-        g.cooldowns[3] = 1.2f;
-        p.yaw = atan2f(g.dodgeDir.x, g.dodgeDir.z);
-        p.play("roll", 0.05f, true, 1.5f);
+    // X: roll / blink
+    if (pad.pressed & BTN_X) {
+        evade();
         return;
     }
-    bool hasTarget = g.target >= 0;
-    int slot = -1;
-    if (pad.pressed & BTN_A) slot = 0;
-    else if (pad.pressed & BTN_X) slot = 1;
-    else if (pad.pressed & BTN_Y) slot = 2;
-    else if (R && (pad.pressed & BTN_B)) slot = 3;
-    if (slot >= 0) {
-        int i = R ? slot + 4 : slot;
-        if (!R && !hasTarget) return;   // A/X/Y without target = interact/menu (handled elsewhere)
-        const Ability &ab = abilityDef(i);
-        if (skillLevel(g.pd.job) < ab.level) { toast("Ability not learned yet", ui::RED); return; }
-        if (ab.needsTarget && !hasTarget) { toast("No target (press Z)", ui::RED); return; }
-        if (ab.cooldown > 0 && g.cooldowns[i] > 0) return;
-        if (ab.cooldown == 0 && g.gcd > 0) return;
-        if (p.mp < ab.mp) { toast("Not enough MP", ui::RED); audio::sfx(SFX_FAIL); return; }
-        if (ab.needsTarget && ab.range > 0 && distXZ(p.pos, g.actors[g.target].pos) > ab.range + g.actors[g.target].radius) {
-            toast("Target out of range", ui::RED);
-            return;
-        }
-        if (ab.cast > 0) {
-            g.castTimer = g.castTotal = ab.cast;
-            g.castAbility = (u8)i;
-            p.play("casting", 0.1f);
-            if (ab.cooldown > 0) g.cooldowns[i] = ab.cooldown;
-            else g.gcd = 2.2f;
-            return;
-        }
-        executeAbility(i);
-    }
-    // auto-attack when in range of the target
-    s_autoTimer -= dt;
-    if (hasTarget && s_autoTimer <= 0) {
-        Actor &t = g.actors[g.target];
-        f32 range = g.pd.job == SK_MAGE ? 22.0f : 3.4f + t.radius;
-        if (distXZ(p.pos, t.pos) <= range && t.active && !t.dead) {
-            s_autoTimer = 2.6f;
-            if (g.pd.job == SK_MAGE) projectile(p.handPos(), g.target, 3, playerDamage(0.5f), true);
-            else {
-                dealPlayerHit(g.target, 0.6f, FX_HIT);
-                if (p.anim.cur && p.anim.cur->loop) p.play("chop", 0.1f, true, 1.3f);
-            }
-            g.combatTimer = 6.0f;
-        }
+    // B: basic attack combo (presses during a swing are buffered)
+    if (pad.pressed & BTN_B) s_atkQueued = true;
+    if (s_atkQueued && s_atkTimer <= 0 && g.dodgeTimer <= 0) {
+        s_atkQueued = false;
+        basicAttack();
     }
 }
+
+bool wheelOpen() { return s_wheelOpen; }
+f32 timeScale() { return s_wheelOpen ? 0.15f : 1.0f; }
+const char *quickItemName() {
+    static const char *const N[3] = {"Heal", "Tonic", "Draught"};
+    return N[s_quickSlot];
+}
+int quickSlot() { return s_quickSlot; }
 
 void projectile(const Vec3 &from, int target, int kind, int damage, bool fromPlayer) {
     for (Projectile &pr : s_proj) {
@@ -979,6 +1104,42 @@ void drawUi() {
         ui::bar(x + 14, y + 32, tw - 28, 9, (f32)t.hp / t.maxHp, ui::rgba(230, 70, 60));
         snprintf(b, sizeof(b), "%d%%", t.hp * 100 / hvMax(1, t.maxHp));
         ui::text(FONT_SMALL, x + tw - 14, y + 8, b, ui::TEXT_DIM, AL_RIGHT);
+    }
+    // skill wheel
+    if (s_wheelOpen) {
+        f32 H = ui::height();
+        f32 k = s_wheelAnim;
+        ui::rect(0, 0, W, H, ui::rgba(10, 8, 20, (u8)(90 * k)));
+        f32 cx = W * 0.5f, cy = H * 0.5f + 10;
+        f32 rad = 112 * (0.7f + 0.3f * k);
+        ui::sprite(hvHash("tx/ui_circle"), cx - 34, cy - 34, 68, 68, ui::rgba(30, 26, 40, 220));
+        ui::text(FONT_SMALL, cx, cy - 9, g.pd.job == SK_MAGE ? "Magic" : "Skills", ui::GOLD, AL_CENTER);
+        for (int n = 0; n < 6; n++) {
+            int ai = WHEEL[n];
+            const Ability &ab = abilityDef(ai);
+            f32 a = n * HV_TAU / 6.0f;
+            f32 x = cx + sinf(a) * rad, y = cy - cosf(a) * rad;
+            bool sel = n == s_wheelSel;
+            bool learned = skillLevel(g.pd.job) >= ab.level;
+            bool ready = learned && (ab.cooldown <= 0 || g.cooldowns[ai] <= 0) && g.player.mp >= ab.mp;
+            f32 bw = sel ? 132 : 118, bh = sel ? 50 : 44;
+            ui::panel(x - bw * 0.5f, y - bh * 0.5f, bw, bh, sel ? ui::SEL : ui::rgba(28, 24, 38, 230), 12);
+            if (ab.cooldown > 0 && g.cooldowns[ai] > 0) {
+                f32 f = hvSaturate(g.cooldowns[ai] / ab.cooldown);
+                ui::rect(x - bw * 0.5f + 4, y + bh * 0.5f - 7, (bw - 8) * f, 3, ui::rgba(140, 180, 255, 220));
+            }
+            char b[40];
+            bool sub = !learned || ab.mp;
+            ui::text(FONT_SMALL, x, y - (sub ? 15 : 9), ab.name, ready ? ui::WHITE : ui::TEXT_DIM, AL_CENTER);
+            if (!learned) {
+                snprintf(b, sizeof(b), "Learn at Lv %d", ab.level);
+                ui::text(FONT_SMALL, x, y + 2, b, ui::RED, AL_CENTER, 0.85f);
+            } else if (ab.mp) {
+                snprintf(b, sizeof(b), "%d MP", ab.mp);
+                ui::text(FONT_SMALL, x, y + 2, b, ui::BLUE, AL_CENTER, 0.85f);
+            }
+        }
+        ui::text(FONT_SMALL, cx, cy + rad + 34, "Tilt the stick to choose - release R to use", ui::TEXT_DIM, AL_CENTER);
     }
     // cast bar
     if (g.castTimer > 0) {

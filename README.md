@@ -18,19 +18,19 @@ Saving works in two ways. The game autosaves when you complete a quest or rest a
 
 ### Controls (GameCube pad)
 
-| Button | In the world | In combat |
-| --- | --- | --- |
-| Control stick | Move | Move |
-| C-stick | Camera | Camera |
-| A | Talk / gather / use station | Weaponskill 1 (starts the combo) |
-| X | – | Weaponskill 2 |
-| Y | Open menu | Weaponskill 3 |
-| B | Back | Dodge roll |
-| Z | Re-centre camera | Target / cycle targets |
-| R + A/X/Y/B | GP abilities while gathering | Job skill set 2 |
-| L + A/X/Y/B | – | Potions and food |
-| D-pad ↑/↓ | Camera zoom | Camera zoom |
-| START | Menu | Menu |
+| Button | What it does |
+| --- | --- |
+| Control stick | Move |
+| C-stick | Camera |
+| A | Talk / gather / use a station. With nothing in front of you, jump |
+| B | Attack (tap repeatedly for a 3-hit combo; mages fire bolts) |
+| X | Roll (warrior) or Blink (mage) |
+| Y | Quick item. D-pad left/right picks Heal, Tonic or Draught |
+| L (hold) | Guard: take 65% less damage |
+| R (hold) | Skill wheel: time slows, tilt the stick at a skill, release R to use it |
+| Z | Lock on and cycle targets (re-centres the camera when no enemies are near) |
+| D-pad up/down | Camera zoom |
+| START | Menu (bag, gear, skills, quests, map, system) |
 
 Crafting puts every action on the face buttons. Hold L or R for more actions. As in FF14, you balance progress, quality, durability and CP.
 

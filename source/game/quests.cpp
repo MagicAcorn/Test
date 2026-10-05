@@ -30,7 +30,7 @@ void gift(int q) {
             if (!g.pd.weapon) {
                 g.pd.weapon = g.pd.job == SK_MAGE ? IT_OAK_STAFF : IT_TRAINING_SWORD;
                 g.player.setHeld(ITEMS[g.pd.weapon].model);
-                toast("Weapon equipped. Press Z to target enemies.", ui::GOLD);
+                toast("Weapon ready: B attack, hold R for skills, L guard, X roll.", ui::GOLD);
             }
             break;
     }
