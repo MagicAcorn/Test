@@ -303,6 +303,7 @@ void drawBag() {
         if (d.cat == IC_WEAPON || d.cat == IC_ARMOR) act = "Equip";
         else if (d.cat == IC_FOOD || d.cat == IC_POTION) act = "Use";
         if (act) ui::prompt(GL_A, dx + 10, y0 + 5 * cell - 34, act);
+        else if (d.cat == IC_TOOL) ui::textWrap(FONT_SMALL, dx + 12, y0 + 5 * cell - 92, dw - 24, "Tool: used automatically when you gather.", ui::GREEN);
     } else {
         ui::text(FONT_SMALL, dx + dw * 0.5f, y0 + 110, "Empty", ui::TEXT_DIM, AL_CENTER);
     }
