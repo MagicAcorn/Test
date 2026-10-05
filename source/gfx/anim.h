@@ -21,6 +21,8 @@ struct Skeleton {
     f32 uscale[MAX_JOINTS];
     s16 hips;
     f32 hipLift;
+    s16 armL, armR;       // upper arms get rotated toward the body (animations were made for wide bodies)
+    Quat armFixL, armFixR;
     int findJoint(u32 nameHash) const;
 };
 

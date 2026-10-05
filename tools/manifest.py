@@ -1,6 +1,7 @@
 """Which third-party (CC0 KayKit) assets go into the game, and how."""
 import numpy as np
 from gltfutil import Gltf
+from meshbuild import fnv1a
 
 ADV = 'KayKit-Character-Pack-Adventures-1.0/addons/kaykit_character_pack_adventures/'
 SKL = 'KayKit-Character-Pack-Skeletons-1.0/addons/kaykit_character_pack_skeletons/'
@@ -156,6 +157,17 @@ def build_all(b, stages=None):
         st, ne = b.add_character(name, rel, 'skel/humanoid', rig)
         print('  %-18s tris %5d batches %3d envelopes %3d' % (name, st['tris'], st['batches'], ne))
         rigs[name] = rel
+    # procedural RuneScape-inspired townsfolk on an "athletic" copy of the rig
+    import humangen
+    import struct
+    sk = bytearray(rig.to_bytes())
+    struct.pack_into('>H', sk, 6, 1)   # flags: athletic proportions
+    b.pak.add('skel/human', 'SKEL', bytes(sk))
+    for name, spec in humangen.PEOPLE.items():
+        parts = humangen.build_person(rig, spec)
+        skin = dict(num_joints=len(rig.names), envelopes=[], skel_hash=fnv1a('skel/human'))
+        st = b.add_model(name, parts, skin)
+        print('  %-18s tris %5d batches %3d' % (name, st['tris'], st['batches']))
     from skelanim import Rig
     for iname, (cname, node) in ITEMS.items():
         gl = Gltf(b.path(CHARACTERS[cname]))

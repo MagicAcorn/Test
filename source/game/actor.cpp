@@ -21,6 +21,7 @@ void Actor::setModel(const char *modelName) {
         char buf[64];
         snprintf(buf, sizeof(buf), "%s#skel", modelName);
         skel = anim::skeleton(hvHash(buf));
+        if (!skel && model->skelHash) skel = anim::skeleton(model->skelHash);
         if (!skel) skel = g_humanoid;
         if (dmCap < model->numDrawMtx) {
             delete[] dm;

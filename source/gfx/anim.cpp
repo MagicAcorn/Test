@@ -25,6 +25,8 @@ int Skeleton::findJoint(u32 h) const {
     return -1;
 }
 
+static const f32 ARM_DROP = 0.32f;
+
 namespace anim {
 
 const Skeleton *skeleton(u32 hash) {
@@ -57,14 +59,13 @@ const Skeleton *skeleton(u32 hash) {
         f32 stretch, scale;
     };
     static const Tweak TW[] = {
-        {"upperleg.l", 1.34f, 1}, {"upperleg.r", 1.34f, 1}, {"lowerleg.l", 1.34f, 1}, {"lowerleg.r", 1.34f, 1},
-        {"upperarm.l", 1.2f, 1},  {"upperarm.r", 1.2f, 1},  {"lowerarm.l", 1.2f, 1},  {"lowerarm.r", 1.2f, 1},
-        {"spine", 1.14f, 1},      {"chest", 1.08f, 1},      {"head", 1.0f, 0.74f},
+        // must match tools/rigpose.py (the human models are authored in this pose)
+        {"upperleg.l", 1.75f, 1}, {"upperleg.r", 1.75f, 1}, {"lowerleg.l", 1.75f, 1}, {"lowerleg.r", 1.75f, 1},
+        {"upperarm.l", 1.25f, 1}, {"upperarm.r", 1.25f, 1}, {"lowerarm.l", 1.25f, 1}, {"lowerarm.r", 1.25f, 1},
+        {"spine", 1.0f, 1},       {"chest", 1.0f, 1},       {"head", 1.0f, 0.74f},
     };
-    int found = 0;
-#ifdef HV_PC
-    if (getenv("HV_NOSHAPE")) found = -100;   // harness: compare against the original proportions
-#endif
+    // only skeletons flagged as "athletic" (header flags bit 0) get the tweaks
+    int found = (rdU16(d + 6) & 1) ? 0 : -100;
     for (const Tweak &t : TW) {
         int j = s.findJoint(hvHash(t.name));
         if (j < 0) continue;
@@ -80,6 +81,13 @@ const Skeleton *skeleton(u32 hash) {
             s.hipLift = (s.stretch[ul] - 1.0f) * fabsf(s.restT[ll].y) + (s.stretch[ll] - 1.0f) * fabsf(s.restT[ft].y);
     } else {
         for (int i = 0; i < MAX_JOINTS; i++) s.stretch[i] = s.uscale[i] = 1.0f;
+    }
+    s.armL = s.armR = -1;
+    if (found >= 8) {
+        s.armL = (s16)s.findJoint(hvHash("upperarm.l"));
+        s.armR = (s16)s.findJoint(hvHash("upperarm.r"));
+        s.armFixL = Quat::axisAngle(Vec3(0, 0, 1), ARM_DROP);
+        s.armFixR = Quat::axisAngle(Vec3(0, 0, 1), -ARM_DROP);
     }
     return &s;
 }
@@ -185,7 +193,10 @@ void toModel(const Skeleton *s, const Pose &p, Mat34 *jm) {
         Vec3 t = p.t[j];
         if (par >= 0) t.y *= s->stretch[par];
         if (j == s->hips) t.y += s->hipLift;
-        Mat34 local = Mat34::trs(t, p.r[j], s->restS[j] * s->uscale[j]);
+        Quat r = p.r[j];
+        if (j == s->armL) r = r * s->armFixL;
+        else if (j == s->armR) r = r * s->armFixR;
+        Mat34 local = Mat34::trs(t, r, s->restS[j] * s->uscale[j]);
         base[j] = (par >= 0) ? base[par] * local : s->rootParent * local;
         jm[j] = base[j];
         if (s->stretch[j] != 1.0f) {

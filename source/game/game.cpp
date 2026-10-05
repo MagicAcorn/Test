@@ -147,7 +147,7 @@ void giveItem(u16 item, int n, bool hq, bool notify) {
 }
 
 const char *lookModel(int look) {
-    static const char *const LOOKS[] = {"chr/knight", "chr/barbarian", "chr/mage", "chr/rogue", "chr/rogue_hooded"};
+    static const char *const LOOKS[] = {"hm/knight", "hm/ranger", "hm/mage", "hm/rogue", "hm/wanderer"};
     return LOOKS[hvClamp(look, 0, 4)];
 }
 

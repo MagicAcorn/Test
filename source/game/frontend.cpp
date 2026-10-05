@@ -98,8 +98,8 @@ void createUpdate(f32 dt) {
     s_preview.pos = stage;
     s_preview.yaw += dt * 0.6f;
     actors::update(s_preview, dt, true);
-    g.cam.eye = stage + Vec3(-1.2f, 1.9f, 5.2f);
-    g.cam.target = stage + Vec3(-1.6f, 1.05f, 0);
+    g.cam.eye = stage + Vec3(-1.0f, 1.7f, 4.0f);
+    g.cam.target = stage + Vec3(-1.25f, 1.15f, 0);
     if (pad.pressed & BTN_UP) { s_row = (s_row + 3) % 4; audio::sfx(SFX_UI_MOVE); }
     if (pad.pressed & BTN_DOWN) { s_row = (s_row + 1) % 4; audio::sfx(SFX_UI_MOVE); }
     int d = (pad.pressed & BTN_RIGHT) ? 1 : ((pad.pressed & BTN_LEFT) ? -1 : 0);
@@ -147,7 +147,7 @@ void createDraw() {
     f32 W = ui::width(), H = ui::height();
     // draw the preview character over the scene (it is rendered in 3D by createDraw3D)
     ui::text(FONT_BIG, 40, 24, "Create your adventurer", ui::GOLD, AL_LEFT, 0.85f);
-    static const char *const LOOKS[] = {"Knight", "Barbarian", "Mage", "Rogue", "Hooded Rogue"};
+    static const char *const LOOKS[] = {"Knight", "Ranger", "Mage", "Rogue", "Wanderer"};
     const char *labels[4] = {"Appearance", "Name", "Starting job", ""};
     char vals[4][48];
     snprintf(vals[0], 48, "%s", LOOKS[s_look]);

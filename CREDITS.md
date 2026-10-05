@@ -16,4 +16,4 @@ CC0 does not require credit, but these packs are a big part of how the game look
 - **Cinzel** — the title font. Licence: `assets/fonts/OFL-Cinzel.txt`.
 
 ## Everything else
-The engine, gxemu, the world, the procedurally generated models and textures, the synthesized sound effects and music, and all game code were written for this project.
+The player and townsfolk models (tools/humangen.py), the engine, gxemu, the world, the procedurally generated models and textures, the synthesized sound effects and music, and all game code were written for this project.
