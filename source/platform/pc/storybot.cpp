@@ -285,6 +285,7 @@ bool fight(int enemyType) {
     for (int i = 0; i < MAX_ACTORS; i++) {
         const Actor &a = g.actors[i];
         if (!a.active || a.kind != AK_ENEMY || a.dead || a.enemyType != enemyType) continue;
+        if (g_world.isWater(a.pos.x, a.pos.z)) continue;   // wading enemies: wait for them to come ashore
         f32 d = distXZ(a.pos, g.player.pos);
         if (d < bd) bd = d, best = i;
     }
@@ -339,6 +340,22 @@ void equipBest() {
 }  // namespace
 
 void storyBotTick() {
+    // HV_STORY_FROM=<q>: skip ahead by completing the earlier main quests
+    static bool skipped = false;
+    if (!skipped) {
+        skipped = true;
+        int from = getenv("HV_STORY_FROM") ? atoi(getenv("HV_STORY_FROM")) : 0;
+        for (int q = 0; q < from && q < NUM_QUESTS; q++) {
+            quests::accept(q);
+            quests::complete(q);
+            if (q == 5) {
+                g.pd.hearthLit = 1;
+                fx::hearthFire(true);
+            }
+        }
+        if (from) printf("[bot] skipped to quest %d\n", from);
+        g.mode = MODE_PLAY;
+    }
     g.pad.sx = g.pad.sy = 0;
     if (s_wait > 0) s_wait--;
     if (g.mode == MODE_CUTSCENE) {
