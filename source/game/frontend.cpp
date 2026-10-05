@@ -99,7 +99,7 @@ void createUpdate(f32 dt) {
     s_preview.yaw += dt * 0.6f;
     actors::update(s_preview, dt, true);
     g.cam.eye = stage + Vec3(0, 2.2f, 6.5f);
-    g.cam.target = stage + Vec3(1.2f, 1.2f, 0);
+    g.cam.target = stage + Vec3(0.55f, 1.15f, 0);
     if (pad.pressed & BTN_UP) { s_row = (s_row + 3) % 4; audio::sfx(SFX_UI_MOVE); }
     if (pad.pressed & BTN_DOWN) { s_row = (s_row + 1) % 4; audio::sfx(SFX_UI_MOVE); }
     int d = (pad.pressed & BTN_RIGHT) ? 1 : ((pad.pressed & BTN_LEFT) ? -1 : 0);
@@ -160,7 +160,7 @@ void createDraw() {
         ui::panel(x, y + r * 62, 280, 52, sel ? ui::SEL : ui::rgba(30, 26, 40, 210), 14);
         GXColor tc = ui::WHITE;
         if (r < 3) {
-            ui::text(FONT_SMALL, x + 16, y + r * 62 + 6, labels[r], sel ? ui::rgba(90, 60, 30) : ui::TEXT_DIM);
+            ui::text(FONT_SMALL, x + 16, y + r * 62 + 6, labels[r], sel ? ui::rgba(255, 236, 200) : ui::TEXT_DIM);
             ui::text(FONT_UI, x + 140, y + r * 62 + 22, vals[r], tc, AL_CENTER);
             ui::text(FONT_UI, x + 22, y + r * 62 + 22, "<", tc);
             ui::text(FONT_UI, x + 258, y + r * 62 + 22, ">", tc);

@@ -1,6 +1,7 @@
 #include "game/game.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "core/pak.h"
 #include "game/scene.h"
 #include "game/world.h"
@@ -90,6 +91,11 @@ int skillLevel(int skill) {
 }
 
 void toast(const char *text, GXColor c, u16 icon) {
+    // repeating the newest message just keeps it on screen longer
+    if (g.toasts[0].timer > 0 && strcmp(g.toasts[0].text, text) == 0) {
+        g.toasts[0].timer = 3.5f;
+        return;
+    }
     for (int i = HV_ARRAY_COUNT(g.toasts) - 1; i > 0; i--) g.toasts[i] = g.toasts[i - 1];
     snprintf(g.toasts[0].text, sizeof(g.toasts[0].text), "%s", text);
     g.toasts[0].color = c;
@@ -274,13 +280,13 @@ static void updateInteraction() {
     g.interact = Game::IK_NONE;
     g.interactIndex = -1;
     f32 best = 1e9f;
-    int npc = npcs::nearestTalkable(p.pos, 3.4f);
+    int npc = npcs::nearestTalkable(p.pos, 4.3f);
     if (npc >= 0) {
         g.interact = Game::IK_NPC;
         g.interactIndex = npc;
         best = distXZ(g.actors[npc].pos, p.pos);
     }
-    int node = nodes::nearest(p.pos, 3.4f, false);
+    int node = nodes::nearest(p.pos, 3.8f, false);
     if (node >= 0) {
         f32 d = distXZ(g.nodes[node].pos, p.pos);
         if (d < best) {
@@ -610,7 +616,7 @@ void gameFrame() {
         }
         g.pd.playSeconds = (u32)(g.pd.playSeconds + 0) + (g.frame % 60 == 0 ? 1 : 0);
     }
-    sky::setTime(g.mode == MODE_TITLE ? 18.6f : g.pd.hour);
+    sky::setTime(g.mode == MODE_TITLE ? 18.6f : (g.mode == MODE_CREATE ? 9.5f : g.pd.hour));
     sky::update(dt);
 
     switch (g.mode) {

@@ -211,6 +211,10 @@ void scenarioTick() {
     if (is("fish")) {
         if (f == 20) g.pad.pressed |= BTN_A;
     }
-    if (f % 120 == 0) printf("[scen] f %d mode %d region %d target %d combat %.1f hp %d\n", f, g.mode, g.currentRegion, g.target, g.combatTimer, g.player.hp);
+    if (f % 60 == 0) {
+        int e = npcs::actorForNpc(NPC_ELDER);
+        printf("[scen] f %d mode %d region %d target %d combat %.1f hp %d interact %d elderDist %.2f\n", f, g.mode, g.currentRegion, g.target,
+               g.combatTimer, g.player.hp, (int)g.interact, e >= 0 ? distXZ(g.actors[e].pos, g.player.pos) : -1.0f);
+    }
 }
 #endif
