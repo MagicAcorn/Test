@@ -201,6 +201,13 @@ void scenarioTick() {
             }
         } else if (is("quests")) {
             questLogicTest();
+        } else if (is("bridge")) {
+            teleport(Vec3(236, 0, 183), 0.9f);
+            g.camDist = 15;
+            g.camPitch = 0.38f;
+        } else if (is("bridge2")) {
+            teleport(Vec3(222, 0, 136), 1.57f);
+            g.camDist = 14;
         } else if (is("oaks")) {
             nearNode(NT_OAK);
             g.player.pos.x += 3;

@@ -295,6 +295,69 @@ def great_hearth():
     return [m.to_part() for m in parts]
 
 
+def bridge(hl, hw, arch, seed=5):
+    """Arched plank bridge spanning x in [-hl, hl] (deck top follows the same
+    curve the engine walks on: y = arch * (1 - (x / hl)^2)), with railings,
+    side beams, river piers and stone abutments that sink into both banks."""
+    rng = np.random.default_rng(seed)
+    deck = lambda x: arch * (1.0 - (x / hl) ** 2)
+    slope = lambda x: math.atan(-2.0 * arch * x / (hl * hl))
+    wood, stone = [], []
+    n = int(2 * hl / 0.72)
+    for i in range(n):
+        x = -hl + (i + 0.5) * (2 * hl / n)
+        pl = box(2 * hl / n - 0.06, 0.24, 2 * hw, y0=-0.24).rotate_z(slope(x)).translate(x, deck(x), 0)
+        c = np.array([150, 104, 64]) * rng.uniform(0.85, 1.12)
+        pl.color(tuple(np.clip(c, 0, 255).astype(int)))
+        wood.append(pl)
+    # side beams under the deck edge
+    for zs in (-1, 1):
+        segs = 10
+        for i in range(segs):
+            x0, x1 = -hl + i * 2 * hl / segs, -hl + (i + 1) * 2 * hl / segs
+            xm = (x0 + x1) / 2
+            bm = box(x1 - x0 + 0.1, 0.42, 0.36, y0=-0.62).rotate_z(slope(xm)).translate(xm, deck(xm), zs * (hw - 0.1))
+            bm.color((96, 64, 40))
+            wood.append(bm)
+    # railings: posts and a top rail
+    posts = int(2 * hl / 2.4) + 1
+    for zs in (-1, 1):
+        z = zs * (hw - 0.16)
+        xs = [-hl + 0.3 + k * (2 * hl - 0.6) / (posts - 1) for k in range(posts)]
+        for x in xs:
+            p_ = box(0.24, 1.15, 0.24).translate(x, deck(x) - 0.05, z)
+            p_.color((110, 74, 46))
+            wood.append(p_)
+        for a, b in zip(xs[:-1], xs[1:]):
+            xm = (a + b) / 2
+            r = box(b - a + 0.2, 0.14, 0.16).rotate_z(slope(xm)).translate(xm, deck(xm) + 0.95, z)
+            r.color((168, 120, 74))
+            wood.append(r)
+            r2 = box(b - a + 0.2, 0.1, 0.1).rotate_z(slope(xm)).translate(xm, deck(xm) + 0.5, z)
+            r2.color((140, 98, 60))
+            wood.append(r2)
+    # piers in the river
+    for xs_ in (-0.42, 0.42):
+        x = xs_ * hl
+        for zs in (-1, 1):
+            pr = cylinder(0.42, 0.5, deck(x) + 4.0, segs=7, y0=-4.0).translate(x, 0, zs * (hw - 0.45))
+            pr.color((88, 62, 42))
+            wood.append(pr)
+    # stone abutments: blocks that bury into the banks under each end
+    for sgn in (-1, 1):
+        for k in range(3):
+            w = 2.0 + k * 0.6
+            blk = box(w, 3.4 - k * 0.5, 2 * hw + 1.0 - k * 0.3, y0=-3.4 - k * 0.2).translate(sgn * (hl + w / 2 - 0.4 - k * 0.2), 0, 0)
+            blk.displace(rng, 0.08, 3.0)
+            g_ = rng.integers(118, 150)
+            blk.color((g_, g_ - 4, g_ - 12))
+            stone.append(blk)
+        cap = box(1.2, 0.3, 2 * hw + 1.2, y0=-0.05).translate(sgn * (hl + 0.2), 0, 0)
+        cap.color((168, 160, 146))
+        stone.append(cap)
+    return [merge(wood).to_part(), merge(stone).to_part()]
+
+
 def campfire(seed=3):
     rng = np.random.default_rng(seed)
     parts = [stone_ring(0.75, 9, 0.22, rng)]

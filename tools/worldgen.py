@@ -509,10 +509,21 @@ class World:
         self.marker(MK_NPC, NPC['child'], tx + 3, tz + 14, yaw=1.0)
         # bridge east of town over the river
         self.bridges = []
-        for (bx, bz, yaw) in ((245.5, 196.0, math.pi / 2), (244.0, 136.0, math.pi / 2)):
-            by = max(self.height_at(bx - 12, bz), self.height_at(bx + 12, bz)) + 0.1
-            self.place('hx/bridge_a', bx, bz, yaw, 8.0, None, y=by - BRIDGE_DECK)
-            self.bridges.append((bx, bz, 11.0, 4.0, by, 1.1))
+        for (bx, bz) in ((245.5, 196.0), (244.0, 136.0)):
+            # span the actual river: find the low (wet) stretch along x and land 3.5 m onto each bank
+            xs = np.arange(bx - 30, bx + 30, 0.5)
+            wet = [x for x in xs if self.height_at(x, bz) < WATER + 0.6]
+            if wet:
+                x0, x1 = min(wet), max(wet)
+                bx = (x0 + x1) / 2
+                hl = (x1 - x0) / 2 + 3.5
+            else:
+                hl = 11.0
+            hw = 3.4
+            by = max(self.height_at(bx - hl, bz), self.height_at(bx + hl, bz)) + 0.15
+            arch = min(1.6, 0.08 * hl)
+            self.bridges.append((bx, bz, hl, hw, by, arch))
+            self.place('pr/bridge_%d' % (len(self.bridges) - 1), bx, bz, 0.0, 1.0, None, y=by)
         self.ramp_bridge_ends()
         # lumbermill + workbench by the river south of the bridge
         lx, lz = 228.0, 228.0
@@ -888,6 +899,11 @@ def build_all(b, stages=None):
     water_col = np.array([70, 150, 200.0]) * (1 - deep) + np.array([40, 96, 160.0]) * deep
     wc = np.where((w.H < WATER)[..., None], water_col, wc)
     w.C_minimap = wc
+    # one bridge model per crossing, sized to the river there
+    import procgen
+    for i, (bx, bz, hl, hw, by, arch) in enumerate(w.bridges):
+        b.add_model('pr/bridge_%d' % i, procgen.bridge(hl, hw, arch, seed=11 + i))
+        print('  bridge %d at (%.0f, %.0f): span %.1f m, width %.1f m' % (i, bx, bz, 2 * hl, 2 * hw))
     data = w.to_bytes()
     b.pak.add('world/vale', 'WRLD', data)
     b.report.append(('world', 'world/vale', len(data)))
