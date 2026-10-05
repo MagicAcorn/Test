@@ -221,7 +221,7 @@ static void updateCamera(f32 dt, bool userControl) {
     Vec3 eye = tgt + Vec3(-sinf(g.camYaw) * cp * g.camDist, sp * g.camDist, -cosf(g.camYaw) * cp * g.camDist);
     // framing shots: over the shoulder toward whoever / whatever the player works with
     Vec3 focus;
-    f32 back = 0, side = 0, up = 0, toward = 0.5f, look = 1.0f;
+    f32 back = 0, side = 0, up = 0, toward = 0.5f, look = 1.0f, shift = 0;
     bool framed = false;
     if (g.mode == MODE_DIALOGUE) {
         int a = npcs::actorForNpc(g.dialogueNpc);
@@ -241,7 +241,9 @@ static void updateCamera(f32 dt, bool userControl) {
         for (int i = 0; i < g.numStations; i++)
             if (g.stations[i].type == g.stationOpen && distXZ(g.stations[i].pos, p.pos) < 8) {
                 focus = g.stations[i].pos;
-                back = 4.6f, side = 2.6f, up = 4.2f, toward = 0.55f, look = 0.4f;
+                // low and close, with player and station pushed to the side of the
+                // frame the forge panel leaves clear
+                back = 3.6f, side = 2.6f, up = 2.3f, toward = 0.6f, look = 0.9f, shift = 2.2f;
                 framed = true;
             }
     }
@@ -256,6 +258,7 @@ static void updateCamera(f32 dt, bool userControl) {
         eye = p.pos - d * back + right * (side * sgn) + Vec3(0, up, 0);
         tgt = lerp(p.pos, focus, toward) + Vec3(0, look, 0);
         tgt.y = hvMax(tgt.y, p.pos.y + look);
+        tgt = tgt + right * (shift * sgn);
         g.camYaw = atan2f(tgt.x - eye.x, tgt.z - eye.z);   // resume normal play from this angle
     }
     // pull the camera in front of buildings and trees between it and the player
