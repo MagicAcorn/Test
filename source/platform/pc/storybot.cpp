@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
+#include <queue>
+#include <vector>
 #include "game/game.h"
 #include "game/world.h"
 
@@ -50,8 +53,97 @@ bool crossesWater(const Vec3 &a, const Vec3 &b) {
     return false;
 }
 
-// Rivers are only crossable on bridges: route through the best one.
+// ---- A* over a 1 m grid of the world (walkable ground, no solid objects)
+const int GN = 384;
+u8 s_pass[GN * GN];   // 0 unknown, 1 passable, 2 blocked
+f32 s_gh[GN * GN];
+
+bool passable(int x, int z) {
+    if (x < 6 || z < 6 || x >= GN - 6 || z >= GN - 6) return false;
+    u8 &c = s_pass[z * GN + x];
+    if (!c) {
+        f32 h = g_world.groundHeight(x + 0.5f, z + 0.5f);
+        s_gh[z * GN + x] = h;
+        bool ok = h > g_world.waterLevel() - 1.0f && !g_world.insideObject(Vec3(x + 0.5f, h + 0.6f, z + 0.5f), 0.45f);
+        c = ok ? 1 : 2;
+    }
+    return c == 1;
+}
+
+std::vector<Vec3> s_path;
+Vec3 s_pathGoal(-1, 0, -1);
+int s_pathAge = 0;
+
+bool findPath(const Vec3 &from, const Vec3 &to) {
+    s_path.clear();
+    int sx = (int)from.x, sz = (int)from.z, tx = (int)to.x, tz = (int)to.z;
+    static f32 cost[GN * GN];
+    static int parent[GN * GN];
+    static u8 closed[GN * GN];
+    for (int i = 0; i < GN * GN; i++) cost[i] = 1e30f, closed[i] = 0;
+    typedef std::pair<f32, int> E;
+    std::priority_queue<E, std::vector<E>, std::greater<E>> open;
+    int start = sz * GN + sx;
+    cost[start] = 0;
+    parent[start] = -1;
+    open.push(E(0, start));
+    int goal = -1, best = start;
+    f32 bestH = 1e30f;
+    int expanded = 0;
+    while (!open.empty() && expanded < 120000) {
+        int cur = open.top().second;
+        open.pop();
+        if (closed[cur]) continue;
+        closed[cur] = 1;
+        expanded++;
+        int cx = cur % GN, cz = cur / GN;
+        f32 hdist = sqrtf((f32)((cx - tx) * (cx - tx) + (cz - tz) * (cz - tz)));
+        if (hdist < bestH) bestH = hdist, best = cur;
+        if (hdist < 1.5f) { goal = cur; break; }
+        passable(cx, cz);
+        f32 ch = s_gh[cur];
+        for (int dz = -1; dz <= 1; dz++)
+            for (int dx = -1; dx <= 1; dx++) {
+                if (!dx && !dz) continue;
+                int nx = cx + dx, nz = cz + dz;
+                if (!passable(nx, nz)) continue;
+                if (dx && dz && (!passable(cx + dx, cz) || !passable(cx, cz + dz))) continue;
+                int ni = nz * GN + nx;
+                if (fabsf(s_gh[ni] - ch) > 0.9f) continue;   // ledge
+                f32 step = (dx && dz) ? 1.414f : 1.0f;
+                f32 nc = cost[cur] + step;
+                if (nc < cost[ni]) {
+                    cost[ni] = nc;
+                    parent[ni] = cur;
+                    f32 h = sqrtf((f32)((nx - tx) * (nx - tx) + (nz - tz) * (nz - tz)));
+                    open.push(E(nc + h, ni));
+                }
+            }
+    }
+    if (goal < 0) goal = best;   // unreachable: get as close as possible
+    for (int c = goal; c >= 0 && c != start; c = parent[c]) s_path.push_back(Vec3(c % GN + 0.5f, 0, c / GN + 0.5f));
+    std::reverse(s_path.begin(), s_path.end());
+    return goal != best || bestH < 1.5f;
+}
+
+// Next point to steer at: follow an A* path to the target, replanning as needed.
 Vec3 routeVia(const Vec3 &target) {
+    const Vec3 &p = g.player.pos;
+    if (distXZ(p, target) < 3.0f) return target;
+    s_pathAge++;
+    if (distXZ(target, s_pathGoal) > 2.5f || s_path.empty() || s_pathAge > 600) {
+        if (!findPath(p, target)) printf("[bot] !! no path from (%.0f,%.0f) to (%.0f,%.0f)\n", p.x, p.z, target.x, target.z);
+        s_pathGoal = target;
+        s_pathAge = 0;
+    }
+    // drop waypoints we've reached, then look ahead along the path
+    while (!s_path.empty() && distXZ(p, s_path.front()) < 1.2f) s_path.erase(s_path.begin());
+    if (s_path.empty()) return target;
+    size_t k = hvMin<size_t>(3, s_path.size() - 1);
+    return s_path[k];
+}
+
+Vec3 routeViaBridges(const Vec3 &target) {
     const Vec3 &p = g.player.pos;
     if (!crossesWater(p, target)) return target;
     int best = -1;
@@ -108,8 +200,7 @@ bool walkTo(const Vec3 &goal, f32 reach) {
     if (g.frame % 60 == 0) {
         if (distXZ(g.player.pos, s_lastPos) < 1.0f) {
             s_stuckFrames += 60;
-            s_sidestep = 50;
-            s_sideSign = -s_sideSign;
+            s_pathAge = 10000;   // replan
         } else {
             s_stuckFrames = 0;
         }
