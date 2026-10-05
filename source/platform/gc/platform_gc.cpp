@@ -198,6 +198,8 @@ static f32 ccAxis(const joystick_t &js, bool y) {
 static f32 pickAxis(f32 a, f32 b) { return fabsf(b) > fabsf(a) ? b : a; }
 #endif
 
+static void rumbleTick(f32 dt);
+
 void pollInput(PadState &p) {
     u32 conn = PAD_ScanPads();
     p.connected = (conn & 1) != 0;
