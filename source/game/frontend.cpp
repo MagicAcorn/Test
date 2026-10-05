@@ -25,12 +25,14 @@ const int NNAMES = HV_ARRAY_COUNT(NAMES);
 f32 s_cutT = 0;
 bool s_lit = false;
 bool s_confirmNew = false;
+f32 s_loadFail = 0;
 }  // namespace
 
 static const Vec3 HEARTH(200, 6, 196);
 
 void titleUpdate(f32 dt) {
     s_titleT += dt;
+    if (s_loadFail > 0) s_loadFail -= dt;
     if (!s_saveChecked) {
         s_hasSave = plat::saveExists();
         s_saveChecked = true;
@@ -68,7 +70,13 @@ void titleUpdate(f32 dt) {
     }
     if (pad.pressed & (BTN_A | BTN_START)) {
         audio::sfx(SFX_UI_OK);
-        if (s_titleSel == 0 && s_hasSave && save::read()) {
+        if (s_titleSel == 0 && s_hasSave && !save::read()) {
+            s_loadFail = 4.0f;
+            s_titleSel = 1;
+            audio::sfx(SFX_FAIL);
+            return;
+        }
+        if (s_titleSel == 0 && s_hasSave) {
             gameSpawnPlayer();
             quests::init();
             fx::hearthFire(g.pd.hearthLit != 0);
@@ -103,6 +111,8 @@ void titleDraw() {
         ui::panel(W * 0.5f - w * 0.5f, y + i * 50, w, 40, sel ? ui::SEL : ui::rgba(30, 26, 40, 200), 14);
         ui::text(FONT_UI, W * 0.5f, y + i * 50 + 9, opts[i], (sel || enabled) ? ui::WHITE : ui::TEXT_DIM, AL_CENTER);
     }
+    if (s_loadFail > 0)
+        ui::text(FONT_SMALL, W * 0.5f, y - 30, "The saved game could not be read.", ui::RED, AL_CENTER);
     if (s_confirmNew) {
         f32 pw = 420, px = W * 0.5f - pw * 0.5f, py = y - 70;
         ui::panel(px, py, pw, 56, ui::PANEL_DARK, 14);

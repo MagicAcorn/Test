@@ -341,13 +341,26 @@ bool saveExists() {
     return cardExists();
 }
 
+// Card file layout: a 64-byte comment (shown by the IPL's memory card
+// screen) followed by the save data. Saves written before the comment was
+// added start straight with the data; they are told apart by the tag.
+static const u32 CARD_HDR = 64;
+static const char kCardTitle[32] = "Hearthvale";
+static const char kCardDesc[32] = "Adventure in the Vale";
+
 static bool cardWrite(const void *data, u32 size) {
     if (!cardMount()) return false;
     u32 sector = 8192;
     CARD_GetSectorSize(CARD_SLOTA, &sector);
-    u32 total = (size + sector - 1) / sector * sector;
+    u32 total = (size + CARD_HDR + sector - 1) / sector * sector;
     card_file f;
     s32 r = CARD_Open(CARD_SLOTA, kSaveName, &f);
+    if (r >= 0 && (u32)f.len < total) {
+        // the save outgrew its file: make a bigger one
+        CARD_Close(&f);
+        CARD_Delete(CARD_SLOTA, kSaveName);
+        r = CARD_ERROR_NOFILE;
+    }
     if (r == CARD_ERROR_NOFILE) r = CARD_Create(CARD_SLOTA, kSaveName, total, &f);
     if (r < 0) {
         CARD_Unmount(CARD_SLOTA);
@@ -355,9 +368,20 @@ static bool cardWrite(const void *data, u32 size) {
     }
     u8 *buf = (u8 *)memalign(32, total);
     memset(buf, 0, total);
-    memcpy(buf, data, size);
+    memcpy(buf, kCardTitle, 32);
+    memcpy(buf + 32, kCardDesc, 32);
+    memcpy(buf + CARD_HDR, data, size);
     r = CARD_Write(&f, buf, total, 0);
     free(buf);
+    if (r >= 0) {
+        card_stat st;
+        if (CARD_GetStatus(CARD_SLOTA, f.filenum, &st) >= 0) {
+            CARD_SetBannerFmt(&st, CARD_BANNER_NONE);
+            CARD_SetIconAddr(&st, 0xFFFFFFFF);
+            CARD_SetCommentAddr(&st, 0);
+            CARD_SetStatus(CARD_SLOTA, f.filenum, &st);
+        }
+    }
     CARD_Close(&f);
     CARD_Unmount(CARD_SLOTA);
     return r >= 0;
@@ -365,22 +389,25 @@ static bool cardWrite(const void *data, u32 size) {
 
 static s32 cardRead(void *data, u32 maxSize) {
     if (!cardMount()) return -1;
-    u32 sector = 8192;
-    CARD_GetSectorSize(CARD_SLOTA, &sector);
     card_file f;
     if (CARD_Open(CARD_SLOTA, kSaveName, &f) < 0) {
         CARD_Unmount(CARD_SLOTA);
         return -1;
     }
-    u32 total = (maxSize + sector - 1) / sector * sector;
-    if (f.len > 0 && total > (u32)f.len) total = (u32)f.len;
+    u32 total = (u32)f.len;
     u8 *buf = (u8 *)memalign(32, total);
     s32 r = CARD_Read(&f, buf, total, 0);
-    if (r >= 0) memcpy(data, buf, total < maxSize ? total : maxSize);
+    s32 n = -1;
+    if (r >= 0) {
+        u32 off = memcmp(buf, kCardTitle, 10) == 0 ? CARD_HDR : 0;
+        u32 avail = total - off;
+        n = (s32)(avail < maxSize ? avail : maxSize);
+        memcpy(data, buf + off, n);
+    }
     free(buf);
     CARD_Close(&f);
     CARD_Unmount(CARD_SLOTA);
-    return r < 0 ? -1 : (s32)(total < maxSize ? total : maxSize);
+    return n;
 }
 
 static bool cardExists() {

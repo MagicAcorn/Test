@@ -254,6 +254,18 @@ void update(f32 dt) {
                 break;
         }
         ad.lastPos = a.pos;
+        {
+            // step around the player rather than through them
+            Vec3 d = a.pos - g.player.pos;
+            d.y = 0;
+            f32 dist = d.lenXZ(), minD = a.radius + g.player.radius + 0.15f;
+            if (dist < minD + 1.2f && dist > 0.01f && a.vel.lenXZ() > 0.1f) {
+                Vec3 side(-d.z / dist, 0, d.x / dist);
+                if (dot(side, a.vel) < 0) side = side * -1.0f;
+                a.vel = a.vel + side * (1.0f - (dist - minD) / 1.2f) * a.vel.lenXZ();
+            }
+            if (dist < minD && dist > 0.01f) a.pos = a.pos + d * ((minD - dist) / dist);
+        }
         actors::move(a, a.vel, dt);
         // chatter
         ad.chatCd -= dt;
