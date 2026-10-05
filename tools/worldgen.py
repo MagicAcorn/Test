@@ -337,6 +337,28 @@ class World:
                 blended = self.H * (1 - lat) + np.maximum(self.H, ramp) * lat
                 self.H = np.where((lat > 0) & (ramp > self.H), blended, self.H)
 
+    TREE_NODE = [('pr/oldoak', 'tree_oak'), ('pr/oak', 'tree_oak'), ('pr/blossom', 'tree_oak'), ('pr/birchs', 'tree_birch'),
+                 ('pr/birch', 'tree_birch'), ('pr/poplar', 'tree_birch'), ('pr/pine', 'tree_pine'), ('pr/umbrella', 'tree_pine'),
+                 ('pr/autumn', 'tree_maple'), ('pr/maple', 'tree_maple'), ('pr/willow', 'tree_willow'), ('pr/darkoak', 'tree_ironwood')]
+    OBJ_HIDDEN = 1   # object kept for collision only; a gathering node draws it
+
+    def trees_to_nodes(self, share=0.8):
+        """Most trees become woodcutting nodes. The node remembers the tree's
+        own model, scale and yaw (marker.extra = model hash, radius = scale)."""
+        from meshbuild import fnv1a
+        n = 0
+        for i, o in enumerate(self.objects):
+            model, x, y, z, yaw, sc, ct, ca, cb, fl = o
+            kind = next((k for prefix, k in self.TREE_NODE if model.startswith(prefix)), None)
+            if kind is None or self.rng.uniform() > share:
+                continue
+            if np.hypot(x - TOWN[0], z - TOWN[1]) < 30:
+                continue   # keep the town square's trees as scenery
+            self.objects[i] = (model, x, y, z, yaw, sc, ct, ca, cb, fl | self.OBJ_HIDDEN)
+            self.markers.append((MK_NODE, NODE[kind], x, y, z, yaw, sc, fnv1a(model)))
+            n += 1
+        print('  %d trees are choppable' % n)
+
     def blocked_at(self, x, z, margin=0.6):
         """Models whose collision covers (x, z) (same box convention as World::resolveCircle)."""
         hits = []
@@ -539,8 +561,9 @@ class World:
     def build_forest(self):
         fx, fz = FOREST
         self.marker(MK_REGION, REGION['whisperwood'], fx, fz, radius=70)
-        kinds = ['pr/oak_a', 'pr/oak_b', 'pr/oak_c', 'pr/birch_a', 'pr/birch_b', 'pr/pine_a', 'pr/pine_b', 'pr/darkoak_a', 'pr/autumn_a']
-        weights = np.array([3, 3, 2, 2, 2, 2, 2, 1.5, 1.0])
+        kinds = ['pr/oak_a', 'pr/oak_b', 'pr/oak_c', 'pr/birch_a', 'pr/birch_b', 'pr/pine_a', 'pr/pine_b', 'pr/darkoak_a', 'pr/autumn_a',
+                 'pr/oldoak_a', 'pr/oldoak_b', 'pr/birchs_a', 'pr/birchs_b', 'pr/poplar_a', 'pr/maple_a', 'pr/maple_b']
+        weights = np.array([2.2, 2.2, 1.5, 1.2, 1.2, 1.6, 1.6, 1.4, 0.8, 1.2, 1.0, 1.4, 1.2, 0.8, 0.9, 0.7])
         weights /= weights.sum()
         count = 0
         for k in range(900):
@@ -724,8 +747,9 @@ class World:
                 continue
             r = self.rng.uniform()
             if r < 0.45:
-                m = self.rng.choice(['pr/oak_a', 'pr/oak_b', 'pr/birch_a', 'pr/autumn_a', 'pr/autumn_b', 'pr/blossom_a', 'pr/pine_b'],
-                                    p=[0.25, 0.2, 0.15, 0.1, 0.08, 0.07, 0.15])
+                m = self.rng.choice(['pr/oak_a', 'pr/oak_b', 'pr/birch_a', 'pr/autumn_a', 'pr/autumn_b', 'pr/blossom_a', 'pr/pine_b',
+                                     'pr/poplar_a', 'pr/poplar_b', 'pr/umbrella_a', 'pr/umbrella_b', 'pr/maple_a', 'pr/oldoak_a', 'pr/birchs_a'],
+                                    p=[0.13, 0.1, 0.08, 0.07, 0.05, 0.06, 0.09, 0.07, 0.05, 0.07, 0.05, 0.06, 0.06, 0.06])
                 s = self.rng.uniform(0.9, 1.3)
                 self.place(m, x, z, self.rng.uniform(0, 6), s, ('c', 0.8 * s), shadow=4)
             elif r < 0.8:
@@ -745,7 +769,7 @@ class World:
             nrm = np.array([-dirv[1], dirv[0]]) / np.linalg.norm(dirv)
             x, z = p + nrm * off
             if self.ok_ground(x, z, 0.6) and self.free(x, z, 5) and np.hypot(x - TOWN[0], z - TOWN[1]) > 40:
-                self.place('pr/willow_a', x, z, self.rng.uniform(0, 6), self.rng.uniform(0.9, 1.2), ('c', 0.9), shadow=4)
+                self.place(self.rng.choice(['pr/willow_a', 'pr/willowc_a', 'pr/willowc_b']), x, z, self.rng.uniform(0, 6), self.rng.uniform(0.9, 1.2), ('c', 0.9), shadow=4)
         # mountain decoration: KayKit mountains on the ridge
         for k in range(30):
             side = k % 4
@@ -880,6 +904,7 @@ def generate():
     w.gather_nodes()
     w.scatter_meadow()
     w.spawns()
+    w.trees_to_nodes()
     w.check_roads()
     return w
 

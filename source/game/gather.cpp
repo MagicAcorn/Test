@@ -32,6 +32,8 @@ void init() {
         n.integrity = d->integrity;
         n.fishing = m.kind == MK_FISH;
         n.sparkle = frand() * 3;
+        n.model = m.extra ? mdl::get(m.extra) : nullptr;
+        n.scale = m.extra ? m.radius : 0.0f;
     }
     hvLog("nodes: %d", g.numNodes);
 }
@@ -91,11 +93,19 @@ void draw() {
         }
         if (!visibleNow(n)) continue;
         if (dist > 160) continue;
-        const char *model = n.respawn > 0 ? d->depletedModel : d->model;
-        if (!model) continue;
-        const Model *m = mdl::get(model);
+        const Model *m;
         f32 sc = d->scale;
-        if (n.respawn > 0 && d->skill == SK_WOODCUTTING) sc = 1.0f;
+        if (n.respawn > 0) {
+            if (!d->depletedModel) continue;
+            m = mdl::get(d->depletedModel);
+            if (d->skill == SK_WOODCUTTING) sc = n.scale > 0 ? n.scale : 1.0f;
+        } else if (n.model) {
+            m = n.model;
+            sc = n.scale;
+        } else {
+            if (!d->model) continue;
+            m = mdl::get(d->model);
+        }
         gfx::drawModel(m, Mat34::place(n.pos, n.yaw, sc), gxc(255, 255, 255), d->skill == SK_WOODCUTTING ? SH_RIM : 0);
     }
 }

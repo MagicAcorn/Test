@@ -82,8 +82,10 @@ struct Node {
     u8 integrity;
     bool fishing;
     f32 sparkle;
+    const Model *model;   // per-node model (trees placed by the world), else the NodeDef's
+    f32 scale;
 };
-static const int MAX_NODES = 160;
+static const int MAX_NODES = 720;
 
 struct StationInst {
     u8 type;

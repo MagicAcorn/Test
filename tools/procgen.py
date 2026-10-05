@@ -18,6 +18,9 @@ LEAF = {
     'blossom': ((190, 100, 140), (255, 205, 220)),
     'willow': ((52, 110, 70), (140, 196, 110)),
     'dark': ((24, 64, 44), (70, 130, 70)),
+    'maple': ((150, 34, 26), (240, 96, 52)),
+    'poplar': ((44, 104, 46), (150, 196, 80)),
+    'stone': ((40, 86, 50), (110, 160, 80)),
 }
 BARK = {
     'oak': ((70, 44, 30), (122, 82, 52)),
@@ -26,6 +29,9 @@ BARK = {
     'blossom': ((70, 44, 36), (118, 78, 60)),
     'willow': ((66, 50, 36), (112, 88, 60)),
     'dark': ((44, 32, 26), (88, 66, 48)),
+    'maple': ((66, 42, 32), (120, 80, 56)),
+    'poplar': ((96, 84, 70), (170, 156, 136)),
+    'stone': ((90, 60, 44), (150, 104, 74)),
 }
 
 ORE = {
@@ -96,6 +102,130 @@ def tree_broadleaf(seed, kind='oak', height=4.2, spread=1.0):
     canopy.jitter_color(rng, 0.06)
     parts.append(canopy)
     return [m.to_part(BF_FOLIAGE if m is canopy else 0) for m in parts]
+
+
+def _trunk(rng, kind, height, r0, r1, segs=7, lean=0.07):
+    tr = cylinder(r0, r1, height, segs=segs, cap_top=False)
+    ln = rng.uniform(-lean, lean, size=2)
+    t = tr.pos[:, 1] / height
+    tr.pos[:, 0] += ln[0] * t * t * height
+    tr.pos[:, 2] += ln[1] * t * t * height
+    tr.gradient_y(BARK[kind][0], BARK[kind][1])
+    return tr, np.array([ln[0] * height, height, ln[1] * height])
+
+
+def _puffs(rng, centers, sizes, kind, squash=0.82, subdiv=1, rough=0.18, ymin=None, ymax=None):
+    puffs = []
+    for c, s in zip(centers, sizes):
+        puffs.append(icosphere(subdiv).scale(s, s * squash, s).displace(rng, rough * s, 2.0).translate(*c))
+    m = merge(puffs)
+    ys = np.array([c[1] for c in centers])
+    lo = ys.min() - max(sizes) if ymin is None else ymin
+    hi = ys.max() + max(sizes) if ymax is None else ymax
+    m.gradient_y(LEAF[kind][0], LEAF[kind][1], lo, hi, power=0.8)
+    m.jitter_color(rng, 0.06)
+    return m
+
+
+def tree_poplar(seed, height=8.0):
+    """Tall columnar tree: a narrow stack of leafy lobes."""
+    rng = np.random.default_rng(seed)
+    trunk, top = _trunk(rng, 'poplar', height * 0.55, 0.42, 0.22, segs=6, lean=0.03)
+    centers, sizes = [], []
+    n = 5
+    for i in range(n):
+        f = i / (n - 1)
+        y = height * (0.35 + 0.65 * f)
+        s = (1.25 - 0.55 * f) * rng.uniform(0.9, 1.1)
+        centers.append(np.array([rng.uniform(-0.25, 0.25), y, rng.uniform(-0.25, 0.25)]))
+        sizes.append(s)
+    canopy = _puffs(rng, centers, sizes, 'poplar', squash=1.25)
+    return [trunk.faceted().to_part(), canopy.to_part(BF_FOLIAGE)]
+
+
+def tree_umbrella(seed, height=6.0):
+    """Stone-pine silhouette: bare leaning trunk with a flat, wide crown."""
+    rng = np.random.default_rng(seed)
+    trunk, top = _trunk(rng, 'stone', height, 0.55, 0.3, segs=7, lean=0.16)
+    parts = [trunk.faceted()]
+    for k in range(3):
+        a = k * 2.1 + rng.uniform(-0.3, 0.3)
+        br = cylinder(0.2, 0.1, 2.0, segs=5, cap_top=False).rotate_z(1.1).rotate_y(a).translate(*(top * np.array([1, 0.85, 1])))
+        br.gradient_y(BARK['stone'][0], BARK['stone'][1])
+        parts.append(br.faceted())
+    centers, sizes = [], []
+    for k in range(7):
+        a = k * 0.9 + rng.uniform(0, 0.5)
+        r = 0 if k == 0 else rng.uniform(1.4, 2.4)
+        centers.append(top + np.array([math.cos(a) * r, rng.uniform(0.2, 0.7), math.sin(a) * r]))
+        sizes.append(rng.uniform(1.3, 1.7))
+    canopy = _puffs(rng, centers, sizes, 'stone', squash=0.45)
+    return [m.faceted().to_part() for m in parts] + [canopy.to_part(BF_FOLIAGE)]
+
+
+def tree_birch_slender(seed, height=6.5):
+    """Tall white birch with a light, airy crown of small clusters."""
+    rng = np.random.default_rng(seed)
+    trunk, top = _trunk(rng, 'birch', height, 0.3, 0.16, segs=6, lean=0.09)
+    stripes = (np.sin(trunk.pos[:, 1] * 6.0 + rng.uniform(0, 3)) > 0.7)
+    trunk.clr[stripes, :3] *= 0.3
+    centers, sizes = [], []
+    for k in range(8):
+        f = rng.uniform(0.45, 1.05)
+        a = rng.uniform(0, 2 * math.pi)
+        r = rng.uniform(0.3, 1.3) * (1.2 - f * 0.6)
+        centers.append(np.array([top[0] * f + math.cos(a) * r, height * f + 0.4, top[2] * f + math.sin(a) * r]))
+        sizes.append(rng.uniform(0.6, 0.95))
+    canopy = _puffs(rng, centers, sizes, 'birch', squash=0.9)
+    return [trunk.faceted().to_part(), canopy.to_part(BF_FOLIAGE)]
+
+
+def tree_willow_curtain(seed, height=4.8):
+    """Weeping willow: a dome with long hanging leaf curtains."""
+    rng = np.random.default_rng(seed)
+    trunk, top = _trunk(rng, 'willow', height, 0.75, 0.45, segs=7, lean=0.1)
+    dome = _puffs(rng, [top + np.array([0, 0.6, 0])] + [top + np.array([math.cos(a) * 1.6, 0.2, math.sin(a) * 1.6]) for a in np.linspace(0, 6.28, 5, endpoint=False)],
+                  [2.0] + [1.5] * 5, 'willow', squash=0.6)
+    strands = []
+    for k in range(14):
+        a = k * 2 * math.pi / 14 + rng.uniform(-0.15, 0.15)
+        r = rng.uniform(2.1, 2.9)
+        L = rng.uniform(2.4, 3.6)
+        st = cone(0.42, L, segs=4).scale(1, -1, 1).translate(math.cos(a) * r, top[1] + 0.6, math.sin(a) * r)
+        st.gradient_y(LEAF['willow'][0], LEAF['willow'][1])
+        strands.append(st)
+    hang = merge(strands)
+    return [trunk.faceted().to_part(), dome.to_part(BF_FOLIAGE), hang.faceted().to_part(BF_FOLIAGE | BF_DOUBLESIDED)]
+
+
+def tree_maple(seed, height=5.0):
+    """Broad red maple: wide rounded crown, short sturdy trunk."""
+    rng = np.random.default_rng(seed)
+    trunk, top = _trunk(rng, 'maple', height, 0.6, 0.38, segs=7, lean=0.06)
+    centers, sizes = [top + np.array([0, 0.9, 0])], [1.9]
+    for k in range(6):
+        a = k * 1.05 + rng.uniform(-0.2, 0.2)
+        centers.append(top + np.array([math.cos(a) * 1.9, rng.uniform(-0.3, 0.8), math.sin(a) * 1.9]))
+        sizes.append(rng.uniform(1.25, 1.55))
+    canopy = _puffs(rng, centers, sizes, 'maple', squash=0.78)
+    return [trunk.faceted().to_part(), canopy.to_part(BF_FOLIAGE)]
+
+
+def tree_old_oak(seed, height=5.2):
+    """Wide old oak: thick trunk, big spreading limbs, sprawling crown."""
+    rng = np.random.default_rng(seed)
+    trunk, top = _trunk(rng, 'oak', height, 1.0, 0.6, segs=8, lean=0.05)
+    parts = [trunk.faceted()]
+    centers, sizes = [top + np.array([0, 1.0, 0])], [2.0]
+    for k in range(5):
+        a = k * 1.256 + rng.uniform(-0.2, 0.2)
+        br = cylinder(0.36, 0.16, 3.2, segs=6, cap_top=False).rotate_z(1.2).rotate_y(-a).translate(*(top * np.array([1, 0.72, 1])))
+        br.gradient_y(BARK['oak'][0], BARK['oak'][1])
+        parts.append(br.faceted())
+        centers.append(top + np.array([math.cos(a) * 3.1, rng.uniform(-0.6, 0.4), math.sin(a) * 3.1]))
+        sizes.append(rng.uniform(1.5, 1.9))
+    canopy = _puffs(rng, centers, sizes, 'oak', squash=0.7)
+    return [m.faceted().to_part() for m in parts] + [canopy.to_part(BF_FOLIAGE)]
 
 
 def tree_pine(seed, kind='dark', height=7.0):
@@ -784,6 +914,13 @@ def build_all(b, stages=None):
     add = b.add_model
     for name, (kind, seed, h, s) in TREES.items():
         add(name, tree_broadleaf(seed, kind, h, s))
+    for i in range(2):
+        add('pr/poplar_%s' % 'ab'[i], tree_poplar(501 + i, [8.0, 9.5][i]))
+        add('pr/umbrella_%s' % 'ab'[i], tree_umbrella(511 + i, [6.0, 7.0][i]))
+        add('pr/birchs_%s' % 'ab'[i], tree_birch_slender(521 + i, [6.5, 7.5][i]))
+        add('pr/willowc_%s' % 'ab'[i], tree_willow_curtain(531 + i, [4.8, 5.4][i]))
+        add('pr/maple_%s' % 'ab'[i], tree_maple(541 + i, [5.0, 5.6][i]))
+        add('pr/oldoak_%s' % 'ab'[i], tree_old_oak(551 + i, [5.2, 5.8][i]))
     add('pr/pine_a', tree_pine(201, 'dark', 7.5))
     add('pr/pine_b', tree_pine(202, 'dark', 6.0))
     add('pr/pine_c', tree_pine(203, 'oak', 8.5))

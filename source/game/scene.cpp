@@ -51,7 +51,7 @@ void drawObjects() {
 #endif
     for (int i = 0; i < g_world.numObjects(); i++) {
         const WorldObject &o = g_world.object(i);
-        if (!o.model) continue;
+        if (!o.model || (o.flags & 1)) continue;   // flag 1: drawn by its gathering node
         f32 d = distXZ(o.cullCenter, cam.eye) - o.cullRadius;
         f32 maxD = o.small ? 75.0f : (o.foliage ? fogEnd - 10.0f : fogEnd + 10.0f);
         if (d > maxD) continue;
