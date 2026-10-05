@@ -376,16 +376,36 @@ bool fight(int enemyType) {
         press(BTN_B, 15);
         return false;
     }
-    // nearest live enemy of this type
+    // low and out of healing: fall back to the Hearth like a player would
+    static bool s_retreat = false;
+    bool haveHeal = false;
+    for (u16 it : {IT_POTION_MINOR, IT_GRILLED_TROUT, IT_LAVENDER_ELIXIR, IT_PERCH_STEW, IT_MINT_TEA})
+        if (g.pd.inv.count(it)) haveHeal = true;
+    if (!s_retreat && g.player.hp < g.player.maxHp * 3 / 10 && !haveHeal) {
+        s_retreat = true;
+        say("retreating to the Hearth to recover (Lv %d)", skillLevel(g.pd.job));
+    }
+    if (s_retreat) {
+        if (g.player.hp >= g.player.maxHp * 95 / 100) {
+            s_retreat = false;
+        } else {
+            if (walkTo(Vec3(200, 0, 196), 4.0f)) press(BTN_A, 40);   // the lit Hearth heals
+            return false;
+        }
+    }
+    // whatever is already on us comes first, then the nearest of the wanted type
     int best = -1;
     f32 bd = 1e9f;
     for (int i = 0; i < MAX_ACTORS; i++) {
         const Actor &a = g.actors[i];
-        if (!a.active || a.kind != AK_ENEMY || a.dead || a.enemyType != enemyType) continue;
+        if (!a.active || a.kind != AK_ENEMY || a.dead) continue;
         if (g_world.isWater(a.pos.x, a.pos.z)) continue;   // wading enemies: wait for them to come ashore
         f32 d = distXZ(a.pos, g.player.pos);
+        if (a.enemyType != enemyType && d > 5.0f) continue;
+        if (a.enemyType != enemyType) d -= 100.0f;
         if (d < bd) bd = d, best = i;
     }
+    if (bd < 0) bd += 100.0f;
     if (best < 0) {
         // walk to the spawn area and wait for it
         for (int i = 0; i < g_world.numMarkers(); i++) {
