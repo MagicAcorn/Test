@@ -162,15 +162,15 @@ void buildGrass(GrassChunk &g, int cx, int cz) {
         Tuft &t = tufts[nt++];
         t.x = x; t.y = y - 0.05f; t.z = z;
         f32 sz = 0.75f + ((r2 >> 8) & 255) / 255.0f * 0.55f;
-        t.w = 1.25f * sz;
-        t.h = 0.72f * sz;
+        t.w = 1.05f * sz;
+        t.h = 0.52f * sz;
         t.a = ((r2 >> 16) & 255) / 255.0f * HV_PI;
         u32 kindr = (r2 >> 24) & 255;
         t.kind = kindr < 18 ? 2 : (kindr < 30 ? 3 : (kindr & 1));
         // tint from the terrain, slightly brighter/yellower
-        t.r = (u8)hvMin(255, c[0] + 18);
-        t.gg = (u8)hvMin(255, c[1] + 22);
-        t.b = (u8)hvMin(255, c[2] + 6);
+        t.r = (u8)hvMin(255, c[0] + 6);
+        t.gg = (u8)hvMin(255, c[1] * 15 / 16 + 6);
+        t.b = (u8)hvMin(255, c[2] + 8);
         t.mtx = (u8)(1 + (r2 % 3));
         Vec3 n = g_w->terrainNormal(x, z);
         t.nx = (s8)(n.x * 64); t.ny = (s8)(n.y * 64); t.nz = (s8)(n.z * 64);
@@ -201,7 +201,7 @@ void buildGrass(GrassChunk &g, int cx, int cz) {
                 GX_MatrixIndex1x8(k >= 2 ? (u8)(t.mtx * 3) : 0);
                 GX_Position3s16((s16)(px[k] * S), (s16)(py[k] * S), (s16)(pz[k] * S));
                 GX_Normal3s8(t.nx, t.ny, t.nz);
-                u8 sh = k >= 2 ? 255 : 200;   // darker at the roots
+                u8 sh = k >= 2 ? 235 : 170;   // darker at the roots
                 GX_Color4u8((u8)(t.r * sh / 255), (u8)(t.gg * sh / 255), (u8)(t.b * sh / 255), 255);
                 GX_TexCoord2u8(uu[k], vv[k]);
             }

@@ -16,11 +16,20 @@ const SkillDef SKILLS[SK_COUNT] = {
 };
 
 // RuneScape-style curve, gentled for a shorter game: level 30 ~ 5.3k xp
+// RuneScape-shaped curve, cached: skillLevel() runs every frame for the HUD
+static u32 s_xpTable[MAX_LEVEL + 2];
+
 u32 xpForLevel(int level) {
     if (level <= 1) return 0;
-    f32 pts = 0;
-    for (int l = 1; l < level; l++) pts += (f32)l + 300.0f * powf(2.0f, l / 7.0f);
-    return (u32)(pts / 4.0f / 2.5f);
+    if (level > MAX_LEVEL + 1) level = MAX_LEVEL + 1;
+    if (!s_xpTable[2]) {
+        f32 pts = 0;
+        for (int l = 1; l <= MAX_LEVEL; l++) {
+            pts += (f32)l + 300.0f * powf(2.0f, l / 7.0f);
+            s_xpTable[l + 1] = (u32)(pts / 5.0f);
+        }
+    }
+    return s_xpTable[level];
 }
 
 int levelForXp(u32 xp) {

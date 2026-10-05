@@ -215,7 +215,7 @@ void banner() {
         ui::text(FONT_BIG, W() * 0.5f, cy - 6, g.banner, ui::rgba(255, 220, 130, (u8)(255 * a)), AL_CENTER);
         if (g.bannerSub[0]) ui::text(FONT_UI, W() * 0.5f, cy + 34, g.bannerSub, ui::rgba(255, 255, 255, (u8)(255 * a)), AL_CENTER);
     }
-    if (g.regionTimer > 0 && g.bannerTimer <= 0 && g.mode != MODE_CUTSCENE) {
+    if (g.regionTimer > 0 && g.bannerTimer <= 0 && g.mode == MODE_PLAY) {
         f32 a = hvSaturate(g.regionTimer) * hvSaturate((3.5f - g.regionTimer) * 2);
         ui::text(FONT_BIG, W() * 0.5f, H() * 0.66f, g.regionName, ui::rgba(255, 250, 235, (u8)(240 * a)), AL_CENTER, 0.85f);
     }

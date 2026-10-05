@@ -1,6 +1,6 @@
 # Hearthvale
 
-A cozy, stylized 3D crafting adventure for the **Nintendo GameCube**. It also runs on a **modded Wii**, either through the Homebrew Channel or in GameCube mode. It plays like a small offline MMO: ten skills to level, gathering and crafting in the style of FF14, cross-hotbar combat, quests, a living town, and adventurers who go about their day around you.
+A cozy, stylized 3D crafting adventure for the **Nintendo GameCube**. It also runs on a **modded Wii**, either through the Homebrew Channel or in GameCube mode. It plays like a small offline MMO: ten skills to level, gathering and crafting in the style of FF14, action combat with a skill wheel, quests, a living town, and adventurers who go about their day around you.
 
 The Great Hearth of Emberwick has gone cold. When it went out, the guilds scattered and the dead under the old Barrow began to stir. Chop, mine, fish, forage, smith, cook, build and brew your way to rekindling it. Then deal with what wakes up.
 
@@ -68,9 +68,9 @@ Scenarios live in `source/platform/pc/scenarios.cpp`. Pass `--wav out.wav` to re
 ## How it is built for the hardware
 
 - **Rendering:** all GX, one pass, in the cel-shaded Wind Waker style. Lighting runs in the transform unit and indexes a toon ramp through `GX_TG_SRTG`, with a rim-light TEV stage. Characters use J3D-style envelope skinning: the CPU blends a few draw matrices and the GPU does the rest.
-- **Geometry:** precompiled triangle-strip display lists with 16-bit indexed vertex data. Heavy models get automatic distance LODs at two levels. Terrain is chunked with LODs, and wind-blown grass is batched per chunk. The busiest view in town submits about 148k vertices per frame, down from 509k before strips and LODs.
+- **Geometry:** precompiled triangle-strip display lists with 16-bit indexed vertex data. Heavy models get automatic distance LODs at two levels. Terrain is chunked with LODs, and wind-blown grass is batched per chunk. The busiest view in town submits about 120k vertices per frame, down from 509k before strips and LODs.
 - **Frame pacing:** the game targets 60 fps. If a scene keeps overrunning a frame, it drops to a steady 30 fps until there is headroom again.
-- **Memory:** everything ships inside the DOL (about 7 MB), well inside the GameCube's 24 MB.
+- **Memory:** everything ships inside the DOL (about 9 MB), well inside the GameCube's 24 MB.
 - **Audio:** every sound effect and all music is synthesized at runtime, so the game ships no sample data. A mixer thread feeds double-buffered audio DMA.
 
 See [DESIGN.md](DESIGN.md) for the game design and [CREDITS.md](CREDITS.md) for asset credits.

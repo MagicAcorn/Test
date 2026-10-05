@@ -484,7 +484,12 @@ void storyBotTick() {
         craft::forgePart(want, &v, &lo, &hi);
         int gap = lo - v;
         int mid = (hi - lo) / 2;
-        press(gap > 38 + mid ? BTN_X : (gap > 22 ? BTN_A : BTN_Y), 36);
+        int f = craft::forgeFocus();
+        int btn = gap > 38 + mid ? BTN_X : (gap > 22 ? BTN_A : BTN_Y);
+        if (btn == BTN_X && f < 10) btn = BTN_A;
+        if (btn == BTN_Y && f < 8) btn = BTN_A;
+        if (f < 5) btn = BTN_B;   // out of focus: finish as it stands
+        press(btn, 36);
         return;
     }
     if (g.mode == MODE_DIALOGUE) {

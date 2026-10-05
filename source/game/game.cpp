@@ -263,8 +263,9 @@ static void updateCamera(f32 dt, bool userControl) {
         Vec3 d = eye - tgt;
         f32 len = d.len();
         f32 keep = len;
-        for (f32 t = 1.2f; t < len; t += 0.5f) {
-            if (g_world.insideObject(tgt + d * (t / len), 0.35f)) {
+        for (f32 t = 1.2f; t < len + 0.25f; t += 0.5f) {
+            // more clearance towards the lens so walls and eaves don't fill the frame
+            if (g_world.insideObject(tgt + d * (hvMin(t, len) / len), 0.35f + 0.9f * hvMin(t, len) / len)) {
                 keep = hvMax(1.5f, t - 0.5f);
                 break;
             }
@@ -658,7 +659,13 @@ void gameFrame() {
             g.pd.day++;
             shop::newDay();
         }
-        g.pd.playSeconds = (u32)(g.pd.playSeconds + 0) + (g.frame % 60 == 0 ? 1 : 0);
+        static f32 s_playFrac = 0;
+        s_playFrac += dt;
+        if (s_playFrac >= 1.0f) {
+            u32 whole = (u32)s_playFrac;
+            g.pd.playSeconds += whole;
+            s_playFrac -= (f32)whole;
+        }
     }
     sky::setTime(g.mode == MODE_TITLE ? 18.6f : (g.mode == MODE_CREATE ? 9.5f : g.pd.hour));
     sky::update(dt);

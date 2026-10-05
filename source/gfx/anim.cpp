@@ -244,7 +244,7 @@ void locomotion(const Skeleton *s, Pose &p, f32 ph, f32 run, f32 act, f32 time, 
     // arms hang by the sides and swing against the legs; bent when running
     for (int k = 0; k < 2; k++) {
         f32 sgn = k ? 1.0f : -1.0f;      // left arm points +x, rotates down with -z
-        f32 down = 1.02f - 0.12f * run - (combat ? 0.15f : 0.0f) + 0.02f * sinf(time * 1.7f) * (1.0f - act);
+        f32 down = 1.14f - 0.16f * run - (combat ? 0.15f : 0.0f) + 0.02f * sinf(time * 1.7f) * (1.0f - act);
         f32 swing = -(0.32f + 0.3f * run) * act * sinf(ph + (k ? HV_PI : 0.0f));
         f32 elbow = 0.18f + 1.1f * run * act + (combat ? 0.7f : 0.0f);
         bodyRot(s, p, s->jUA[k], Quat::axisAngle(X, -swing) * Quat::axisAngle(Z, sgn * down));

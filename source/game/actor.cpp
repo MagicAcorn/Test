@@ -103,6 +103,18 @@ void update(Actor &a, f32 dt, bool nearCamera) {
                 f32 stride = hvMax(0.5f, a.skel->legLen * (1.3f + 1.1f * run));
                 a.gait += dt * HV_TAU * hvMax(v, 0.0f) / (2.0f * stride);
                 if (a.gait > 1000.0f) a.gait -= 100.0f * HV_TAU;
+                static const u32 JUMPS[3] = {hvHash("anim/jump_start"), hvHash("anim/jump_idle"), hvHash("anim/jump_land")};
+                if (h == JUMPS[0] || h == JUMPS[1] || h == JUMPS[2] || !a.grounded) {
+                    // the stock jump clips fling the arms out level; on long-limbed
+                    // rigs that reads as a T-pose, so pull them most of the way down
+                    Pose lp = pose;
+                    anim::locomotion(a.skel, lp, a.gait, 1.0f, 0.4f, a.squash, false);
+                    const Skeleton *s = a.skel;
+                    for (int k = 0; k < 2; k++) {
+                        if (s->jUA[k] >= 0) pose.r[s->jUA[k]] = qnlerp(pose.r[s->jUA[k]], lp.r[s->jUA[k]], 0.7f);
+                        if (s->jLA[k] >= 0) pose.r[s->jLA[k]] = qnlerp(pose.r[s->jLA[k]], lp.r[s->jLA[k]], 0.5f);
+                    }
+                }
                 if (a.locoW > 0.001f) {
                     Pose lp = pose;
                     anim::locomotion(a.skel, lp, a.gait, run, a.locoAct, a.squash, h == LOCO[3]);

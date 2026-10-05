@@ -212,6 +212,7 @@ bool synthesisDone();
 void interrupt();          // attacked: finish the piece as it stands and leave
 int forgeParts();          // >0 while the forge minigame is running
 int forgeSelected();
+int forgeFocus();
 void forgePart(int i, int *val, int *lo, int *hi);
 }
 namespace npcs {

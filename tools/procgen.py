@@ -710,6 +710,13 @@ def item_potion(color):
     return [flask.faceted().to_part(), neck.faceted().to_part(), cork.faceted().to_part()]
 
 
+def item_bobber():
+    float_ = icosphere(1).scale(0.11, 0.13, 0.11)
+    float_.gradient_y((245, 242, 232), (225, 50, 40))
+    stick = cylinder(0.018, 0.012, 0.16, segs=5, y0=0.1).color((60, 50, 40))
+    return [float_.to_part(), stick.faceted().to_part()]
+
+
 def item_bread():
     m = icosphere(1).scale(0.36, 0.2, 0.24).translate(0, 0.0, 0)
     m.gradient_y((170, 100, 40), (230, 170, 90))
@@ -970,6 +977,7 @@ def build_all(b, stages=None):
     for k, c in (('red', (220, 50, 60)), ('blue', (60, 120, 230)), ('green', (80, 200, 90)), ('gold', (240, 190, 50)), ('purple', (160, 80, 210))):
         add('ip/potion_' + k, item_potion(c))
     add('ip/bread', item_bread())
+    add('ip/bobber', item_bobber())
     add('ip/gem_ruby', item_gem((230, 40, 70)))
     add('ip/gem_sapphire', item_gem((50, 100, 240)))
     add('ip/gem_emerald', item_gem((40, 200, 100)))

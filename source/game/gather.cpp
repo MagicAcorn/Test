@@ -559,8 +559,8 @@ void drawWorld() {
     if (g.mode == MODE_FISH && f_spot >= 0 && f_state != FS_READY && f_state != FS_CAST) {
         f32 bob = sinf(g.time * 3.0f) * 0.05f;
         if (f_state == FS_BITE) bob = -0.15f + sinf(g.time * 30.0f) * 0.08f;
-        const Model *m = mdl::get("ip/potion_red");
-        gfx::drawModel(m, Mat34::place(f_bobber + Vec3(0, bob - 0.05f, 0), 0, 0.45f));
+        const Model *m = mdl::get("ip/bobber");
+        gfx::drawModel(m, Mat34::place(f_bobber + Vec3(0, bob - 0.04f, 0), 0, 1.3f));
         water::drawRipple(f_bobber, 0.7f + 0.3f * sinf(g.time * 2), 0.5f);
     }
 }

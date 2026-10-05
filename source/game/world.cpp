@@ -171,6 +171,15 @@ f32 World::groundHeight(f32 x, f32 z, f32 refY) const {
 // True if p lies inside the collision volume of a solid object (box or
 // cylinder footprint up to the model's top), grown by `pad`.
 bool World::insideObject(const Vec3 &p, f32 pad) const {
+    for (int i = 0; i < m_numBridges; i++) {
+        // bridge decks are solid slabs for the camera
+        const Bridge &b = m_bridges[i];
+        f32 dx = p.x - b.x, dz = p.z - b.z;
+        if (fabsf(dx) > b.halfLen || fabsf(dz) > b.halfWidth) continue;
+        f32 t = dx / b.halfLen;
+        f32 y = b.y + b.arch * (1.0f - t * t);
+        if (p.y < y + 0.1f && p.y > y - 0.6f - pad) return true;
+    }
     f32 gc = gridCell();
     int gx = (int)(p.x / gc), gz = (int)(p.z / gc);
     for (int cz = gz - 1; cz <= gz + 1; cz++)
@@ -190,6 +199,16 @@ bool World::insideObject(const Vec3 &p, f32 pad) const {
                     f32 lx = dx * o.cosY - dz * o.sinY;
                     f32 lz = dx * o.sinY + dz * o.cosY;
                     if (fabsf(lx) < o.ca + pad && fabsf(lz) < o.cb + pad) return true;
+                    // above head height, roofs overhang the walls: use the model's own extent
+                    if (p.y > o.pos.y + 2.2f) {
+                        f32 ex = hvMax(fabsf(o.model->bmin.x), fabsf(o.model->bmax.x)) * o.scale;
+                        f32 ez = hvMax(fabsf(o.model->bmin.z), fabsf(o.model->bmax.z)) * o.scale;
+                        f32 r = hvMax(ex, ez);
+                        if (r > 2.5f && dx * dx + dz * dz < r * r) {
+                            f32 ux = fabsf(lx), uz = fabsf(lz);
+                            if ((ux < ex + pad && uz < ez + pad) || (ux < ez + pad && uz < ex + pad)) return true;
+                        }
+                    }
                 }
             }
         }

@@ -51,8 +51,8 @@ struct Technique {
 };
 const Technique TECH[T_COUNT] = {
     {1, 5, 10, 20, false},   // A
-    {1, 9, 20, 35, false},   // X
-    {1, 7, 1, 6, false},     // Y
+    {1, 10, 17, 38, false},  // X: big but unpredictable
+    {1, 8, 2, 7, false},     // Y
     {1, 0, 0, 0, false},     // B finish
     {4, 14, 5, 11, true},    // R+A
     {8, 10, 0, 0, false},    // R+X
@@ -128,7 +128,7 @@ void setupForge(int recipe) {
     s_parts = hvClamp(2 + (int)r.progress / 45, 2, MAX_PARTS);
     // target zones get narrower for recipes above your level, wider below it
     int diff = skillLevel(s_skill) - r.level;
-    int width = hvClamp(12 + diff * 2 + toolTier(toolKindFor(s_skill)) * 2, 7, 22);
+    int width = hvClamp(10 + diff * 2 + toolTier(toolKindFor(s_skill)) * 2, 6, 20);
     for (int i = 0; i < s_parts; i++) {
         int c = irand(42, 96);
         s_lo[i] = c - width / 2;
@@ -137,7 +137,7 @@ void setupForge(int recipe) {
         s_broken[i] = false;
         s_flash[i] = 0;
     }
-    s_maxFocus = 34 + s_parts * 15 + skillLevel(s_skill) * 3 + toolTier(toolKindFor(s_skill)) * 8;
+    s_maxFocus = 24 + s_parts * 13 + skillLevel(s_skill) * 2 + toolTier(toolKindFor(s_skill)) * 6;
     s_focus = s_maxFocus;
     s_cur = 0;
     s_step = 0;
@@ -248,6 +248,7 @@ void interrupt() {
 
 int selectedRecipe() { return (g.mode == MODE_CRAFT_SELECT && s_count) ? s_list[s_sel] : -1; }
 bool synthesisDone() { return s_done; }
+int forgeFocus() { return s_focus; }
 int forgeParts() { return g.mode == MODE_CRAFT ? s_parts : 0; }
 int forgeSelected() { return s_cur; }
 void forgePart(int i, int *val, int *lo, int *hi) {
@@ -447,7 +448,8 @@ void drawUi() {
         // fill
         f32 fh = gh * (f32)s_val[i] / GAUGE_MAX;
         int sc = partScore(i);
-        GXColor fc = s_broken[i] ? ui::rgba(120, 60, 60) : (sc == 100 ? ui::rgba(120, 230, 120) : ui::rgba(110, 170, 255));
+        bool over = s_val[i] > s_hi[i];
+        GXColor fc = s_broken[i] ? ui::rgba(120, 60, 60) : (sc == 100 ? ui::rgba(120, 230, 120) : (over ? ui::rgba(240, 110, 70) : ui::rgba(110, 170, 255)));
         if (s_flash[i] > 0) fc = ui::rgba(255, 255, 255);
         ui::rect(gx + 8, gy + gh - fh, gw - 16, fh, fc);
         // zone edges stay visible on top of the fill
