@@ -255,12 +255,32 @@ void drawUi() {
     if (!count) ui::text(FONT_UI, x + 20, y + 70, "Nothing to sell.", ui::TEXT_DIM);
     snprintf(b, sizeof(b), "Your coins: %u", g.pd.coins);
     ui::text(FONT_UI, x + 16, y + 344, b, ui::GOLD);
-    f32 px = x + w + 20, py = y + 10;
+    // detail card for the selected line, with the controls underneath
+    f32 dx = x + w + 14, dw = W - dx - 24;
+    ui::panel(dx, y, dw, 250, ui::PANEL_DARK);
+    u16 cur = 0;
+    bool curHq = false;
+    if (count) {
+        if (s_tab == 0) cur = STOCK[s_sel];
+        else {
+            cur = g.pd.inv.slots[s_sellList[s_sel]].item;
+            curHq = g.pd.inv.slots[s_sellList[s_sel]].hq;
+        }
+    }
+    if (cur) {
+        const ItemDef &d = ITEMS[cur];
+        ui::icon(d.model, dx + dw * 0.5f, y + 54, 76, 1.0f);
+        ui::text(FONT_UI, dx + dw * 0.5f, y + 98, d.name, curHq ? ui::GOLD : ui::WHITE, AL_CENTER);
+        ui::textWrap(FONT_SMALL, dx + 12, y + 124, dw - 24, d.desc, ui::TEXT_DIM);
+        f32 f = dayFactor(cur);
+        const char *trend = f > 1.1f ? "Price is high today" : (f < 0.9f ? "Price is low today" : "Usual price today");
+        ui::text(FONT_SMALL, dx + dw * 0.5f, y + 222, trend, f > 1.1f ? ui::GREEN : (f < 0.9f ? ui::RED : ui::TEXT_DIM), AL_CENTER);
+    }
+    f32 px = dx + 4, py = y + 262;
     ui::prompt(GL_A, px, py, s_tab == 0 ? "Buy" : "Sell one");
-    if (s_tab == 1) ui::prompt(GL_Y, px, py + 32, "Sell stack");
-    ui::prompt(GL_X, px, py + 64, "Buy / Sell tab");
-    ui::prompt(GL_B, px, py + 96, "Leave");
-    ui::textWrap(FONT_SMALL, px, py + 140, W - px - 24, "Prices change every morning. + means today's price is high, - means low.", ui::TEXT_DIM);
+    if (s_tab == 1) ui::prompt(GL_Y, px, py + 30, "Sell stack");
+    ui::prompt(GL_X, px, py + (s_tab == 1 ? 60 : 30), "Buy / Sell tab");
+    ui::prompt(GL_B, px, py + (s_tab == 1 ? 90 : 60), "Leave");
 }
 
 }  // namespace shop
