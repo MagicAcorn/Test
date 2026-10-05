@@ -282,6 +282,15 @@ bool World::walkable(f32 x, f32 z, f32 fromY) const {
         f32 deck = br.y + br.arch * (1.0f - t * t);
         if (fabsf(fromY - deck) < 0.5f && deck - terrainHeight(x, z) > 0.8f) return false;
     }
+    // no squeezing in under a low deck from the bank or the water
+    for (int i = 0; i < m_numBridges; i++) {
+        const Bridge &br = m_bridges[i];
+        f32 dx = x - br.x, dz = z - br.z;
+        if (fabsf(dx) > br.halfLen || fabsf(dz) > br.halfWidth + 0.4f) continue;
+        f32 t = dx / br.halfLen;
+        f32 deck = br.y + br.arch * (1.0f - t * t);
+        if (fromY < deck - 1.0f && deck - terrainHeight(x, z) < 2.6f) return false;
+    }
     f32 g = groundHeight(x, z, fromY);
     if (g < m_water - 1.1f) return false;            // deep water
     if (g - fromY > 1.6f) return false;              // cliff up

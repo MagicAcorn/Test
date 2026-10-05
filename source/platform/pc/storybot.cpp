@@ -70,6 +70,15 @@ bool passable(int x, int z) {
     return c == 1;
 }
 
+// bridge decks are entered and left only through their ends (railings)
+bool onDeck(int x, int z) {
+    for (int i = 0; i < g_world.numBridges(); i++) {
+        const Bridge &b = g_world.bridge(i);
+        if (fabsf(x + 0.5f - b.x) <= b.halfLen && fabsf(z + 0.5f - b.z) <= b.halfWidth) return true;
+    }
+    return false;
+}
+
 std::vector<Vec3> s_path;
 Vec3 s_pathGoal(-1, 0, -1);
 int s_pathAge = 0;
@@ -110,6 +119,7 @@ bool findPath(const Vec3 &from, const Vec3 &to) {
                 if (dx && dz && (!passable(cx + dx, cz) || !passable(cx, cz + dz))) continue;
                 int ni = nz * GN + nx;
                 if (fabsf(s_gh[ni] - ch) > 0.9f) continue;   // ledge
+                if (dz && onDeck(nx, nz) != onDeck(cx, cz)) continue;   // over a railing
                 f32 step = (dx && dz) ? 1.414f : 1.0f;
                 f32 nc = cost[cur] + step;
                 if (nc < cost[ni]) {
@@ -207,7 +217,10 @@ bool walkTo(const Vec3 &goal, f32 reach) {
         s_lastPos = g.player.pos;
     }
     if (s_stuckFrames > 900) {
-        printf("[bot] !! stuck near (%.0f, %.0f) heading to (%.0f, %.0f) - teleporting\n", g.player.pos.x, g.player.pos.z, p.x, p.z);
+        printf("[bot] !! stuck near (%.1f, %.1f) y %.2f heading to (%.0f, %.0f) - teleporting  [terrain %.2f ground %.2f walk+x %d walk+z %d]\n",
+               g.player.pos.x, g.player.pos.z, g.player.pos.y, p.x, p.z, g_world.terrainHeight(g.player.pos.x, g.player.pos.z),
+               g_world.groundHeight(g.player.pos.x, g.player.pos.z, g.player.pos.y + 0.5f),
+               g_world.walkable(g.player.pos.x + 0.3f, g.player.pos.z, g.player.pos.y), g_world.walkable(g.player.pos.x, g.player.pos.z - 0.3f, g.player.pos.y));
         Vec3 t = p - d * (reach * 0.8f);
         g.player.pos = t;
         g.player.pos.y = g_world.groundHeight(t.x, t.z);
@@ -485,6 +498,11 @@ void storyBotTick() {
             if (from > 4) g.pd.xp[SK_WARRIOR] += 4 * 26 * 7 / 4;
             // quest 4 has you brew a batch of healing potions
             if (from > 3) giveItem(IT_POTION_MINOR, 6, false, false);
+            // by the Barrow a player has usually smithed some bronze gear
+            if (from > 6) {
+                giveItem(IT_BRONZE_SWORD, 1, false, false);
+                giveItem(IT_BRONZE_MAIL, 1, false, false);
+            }
             printf("[bot] skipped to quest %d\n", from);
         }
         g.mode = MODE_PLAY;
