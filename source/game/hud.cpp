@@ -405,7 +405,7 @@ const int NSYS = 5;
 void drawSystem() {
     f32 x = W() * 0.5f - 150, y = 96;
     const char *opts[NSYS] = {"Save Game", "Rest until morning", "Toggle Job (Warrior / Mage)",
-                              ui::widescreen() ? "Screen: Widescreen 16:9" : "Screen: Standard 4:3", "Return to Title"};
+                              ui::widescreen() ? "Screen: Widescreen 16:9" : "Screen: Standard 4:3", "Save and Return to Title"};
     for (int k = 0; k < NSYS; k++) {
         bool sel = k == s_sysSel;
         ui::panel(x, y + k * 50, 300, 40, sel ? ui::SEL : ui::PANEL_DARK, 12);
@@ -561,6 +561,8 @@ void updateMenu(f32 dt) {
                     snprintf(b, sizeof(b), "Job changed to %s", SKILLS[g.pd.job].name);
                     toast(b, ui::GOLD);
                 } else {
+                    // leaving for the title keeps your progress
+                    save::write();
                     gameReturnToTitle();
                 }
             }

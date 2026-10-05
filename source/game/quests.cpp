@@ -36,6 +36,19 @@ void gift(int q) {
     }
 }
 
+
+// gather / craft steps count what is already in the bag
+void creditHeld(int q) {
+    QuestState &s = g.pd.quests[q];
+    if (s.status != QST_ACTIVE) return;
+    const QuestStep &st = cur(q);
+    if (st.type != QS_GATHER && st.type != QS_CRAFT) return;
+    int have = hvMin<int>(st.count, g.pd.inv.count(st.target));
+    if (have <= s.progress) return;
+    s.progress = (u8)have;
+    if (s.progress >= st.count && st.npc == 0) advance(q);
+}
+
 void progress(u8 type, u16 target, int n) {
     for (int q = 0; q < NUM_QUESTS; q++) {
         QuestState &s = g.pd.quests[q];
@@ -77,7 +90,7 @@ void accept(int q) {
     showBanner(QUESTS[q].main ? "New Story Quest" : "New Quest", QUESTS[q].title, 3.0f);
     audio::sfx(SFX_QUEST);
     gift(q);
-    // some steps may already be satisfied by items in hand (deliveries)
+    creditHeld(q);
 }
 
 void advance(int q) {
@@ -96,6 +109,7 @@ void advance(int q) {
     char b[96];
     snprintf(b, sizeof(b), "New objective: %s", cur(q).objective);
     toast(b, ui::GOLD);
+    creditHeld(q);
 }
 
 void complete(int q) {

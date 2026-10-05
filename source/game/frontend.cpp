@@ -18,12 +18,13 @@ f32 s_titleT = 0;
 int s_row = 0;
 int s_look = 0, s_nameIdx = 0, s_job = SK_WARRIOR;
 Actor s_preview;
-const char *const NAMES[] = {"Rowan", "Ember", "Kestrel", "Wren", "Aldric", "Isla", "Bramble", "Corin", "Marigold", "Thane", "Juniper", "Faye"};
+const char *const NAMES[] = {"Arden", "Ember", "Kestrel", "Sorrel", "Aldric", "Isla", "Bramble", "Corin", "Marigold", "Thane", "Juniper", "Faye", "Hale", "Briony", "Tamsin", "Oren"};
 const int NNAMES = HV_ARRAY_COUNT(NAMES);
 
 // cutscene
 f32 s_cutT = 0;
 bool s_lit = false;
+bool s_confirmNew = false;
 }  // namespace
 
 static const Vec3 HEARTH(200, 6, 196);
@@ -45,9 +46,25 @@ void titleUpdate(f32 dt) {
     sim::update(dt);
     fx::update(dt);
     PadState &pad = g.pad;
-    if (pad.pressed & (BTN_UP | BTN_DOWN)) {
-        if (s_hasSave) s_titleSel ^= 1;
-        audio::sfx(SFX_UI_MOVE);
+    if (s_confirmNew) {
+        // starting over replaces the save once the new game autosaves
+        if (pad.pressed & BTN_B) {
+            s_confirmNew = false;
+            audio::sfx(SFX_UI_BACK);
+            return;
+        }
+        if (!(pad.pressed & BTN_A)) return;
+        s_confirmNew = false;
+    } else {
+        if (pad.pressed & (BTN_UP | BTN_DOWN)) {
+            if (s_hasSave) s_titleSel ^= 1;
+            audio::sfx(SFX_UI_MOVE);
+        }
+        if ((pad.pressed & (BTN_A | BTN_START)) && s_titleSel == 1 && s_hasSave) {
+            s_confirmNew = true;
+            audio::sfx(SFX_UI_OK);
+            return;
+        }
     }
     if (pad.pressed & (BTN_A | BTN_START)) {
         audio::sfx(SFX_UI_OK);
@@ -85,6 +102,14 @@ void titleDraw() {
         f32 w = 220;
         ui::panel(W * 0.5f - w * 0.5f, y + i * 50, w, 40, sel ? ui::SEL : ui::rgba(30, 26, 40, 200), 14);
         ui::text(FONT_UI, W * 0.5f, y + i * 50 + 9, opts[i], (sel || enabled) ? ui::WHITE : ui::TEXT_DIM, AL_CENTER);
+    }
+    if (s_confirmNew) {
+        f32 pw = 420, px = W * 0.5f - pw * 0.5f, py = y - 70;
+        ui::panel(px, py, pw, 56, ui::PANEL_DARK, 14);
+        ui::text(FONT_UI, W * 0.5f, py + 6, "Start over? Your saved game will be replaced.", ui::GOLD, AL_CENTER, 0.85f);
+        f32 bx = W * 0.5f - 90;
+        bx += ui::prompt(GL_A, bx, py + 30, "Start over") + 20;
+        ui::prompt(GL_B, bx, py + 30, "Back");
     }
     ui::text(FONT_SMALL, W * 0.5f, H - 34, "Press START", ui::rgba(255, 255, 255, (u8)(160 + 90 * sinf(s_titleT * 3))), AL_CENTER);
     ui::text(FONT_SMALL, 16, H - 34, "Art: KayKit by Kay Lousberg (CC0)", ui::rgba(255, 255, 255, 120));
