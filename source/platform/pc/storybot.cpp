@@ -329,7 +329,13 @@ bool obtain(u16 item, int count, int depth = 0) {
             int fs = gather::fishState();
             if (fs == 0 || fs == 3 || fs == 5) press(BTN_A, 20);
         } else if (g.mode == MODE_PLAY) {
-            if ((g.interact == Game::IK_NODE || g.interact == Game::IK_FISH) && g.interactIndex == n) {
+            bool here = false;
+            if ((g.interact == Game::IK_NODE || g.interact == Game::IK_FISH) && g.interactIndex >= 0) {
+                const NodeDef *hd = nodeDef(g.nodes[g.interactIndex].type);
+                for (int k = 0; hd && k < 3; k++)
+                    if (hd->loot[k].item == item && skillLevel(hd->skill) >= hd->loot[k].level) here = true;
+            }
+            if (here) {
                 g.pad.sx = g.pad.sy = 0;
                 press(BTN_A, 20);
             } else {
@@ -444,7 +450,13 @@ void storyBotTick() {
                 fx::hearthFire(true);
             }
         }
-        if (from) printf("[bot] skipped to quest %d\n", from);
+        if (from) {
+            // tools the skipped quests would have handed over
+            giveItem(IT_WORN_HATCHET, 1, false, false);
+            if (from > 1) giveItem(IT_WORN_PICK, 1, false, false);
+            if (from > 2) giveItem(IT_WORN_ROD, 1, false, false);
+            printf("[bot] skipped to quest %d\n", from);
+        }
         g.mode = MODE_PLAY;
     }
     g.pad.sx = g.pad.sy = 0;
