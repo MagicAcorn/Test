@@ -6,6 +6,8 @@ Environment g_env;
 Camera g_cam;
 u8 *g_ramp;
 GXTexObj g_rampObj;
+u8 *g_uiRamp;
+GXTexObj g_uiRampObj;
 u32 g_shadeKey = 0xFFFFFFFFu;
 int g_fogOn = -1;
 int g_vcdMode = -1;   // cached vertex descriptor configuration
@@ -84,6 +86,8 @@ void Camera::update(f32 aspect) {
 
 namespace gfx {
 
+static void buildRamp(const Environment &e, u8 *dst);
+
 Stats &stats() { return g_stats; }
 const Environment &env() { return g_env; }
 const Camera &camera() { return g_cam; }
@@ -105,6 +109,16 @@ void init() {
     GX_InitTexObj(&g_rampObj, g_ramp, RAMP_W, RAMP_H, GX_TF_RGBA8, GX_CLAMP, GX_CLAMP, GX_FALSE);
     GX_InitTexObjFilterMode(&g_rampObj, GX_LINEAR, GX_LINEAR);
     rebuildRamp();
+    g_uiRamp = (u8 *)hvAlignedAlloc(RAMP_W * RAMP_H * 4);
+    Environment uiEnv;
+    uiEnv.sunColor = gxc(160, 154, 140);
+    uiEnv.shadowColor = gxc(104, 104, 124);
+    uiEnv.rimStrength = 0.5f;
+    buildRamp(uiEnv, g_uiRamp);
+    DCFlushRange(g_uiRamp, RAMP_W * RAMP_H * 4);
+    GX_InitTexObj(&g_uiRampObj, g_uiRamp, RAMP_W, RAMP_H, GX_TF_RGBA8, GX_CLAMP, GX_CLAMP, GX_FALSE);
+    GX_InitTexObjFilterMode(&g_uiRampObj, GX_LINEAR, GX_LINEAR);
+    GX_InvalidateTexAll();
 
     GX_SetCullMode(GX_CULL_BACK);
     GX_SetZMode(GX_TRUE, GX_LEQUAL, GX_TRUE);
@@ -133,8 +147,13 @@ void setEnvironment(const Environment &e) {
 }
 
 void rebuildRamp() {
+    buildRamp(g_env, g_ramp);
+    DCFlushRange(g_ramp, RAMP_W * RAMP_H * 4);
+    GX_InvalidateTexAll();
+}
+
+static void buildRamp(const Environment &e, u8 *dst) {
     static u8 rgba[RAMP_W * RAMP_H * 4];
-    const Environment &e = g_env;
     for (int y = 0; y < RAMP_H; y++) {
         f32 t = (y + 0.5f) / RAMP_H;          // 0.5 + 0.5 * N.V
         for (int x = 0; x < RAMP_W; x++) {
@@ -156,9 +175,13 @@ void rebuildRamp() {
             o[3] = (u8)hvClamp(rim * 255.0f, 0.0f, 255.0f);
         }
     }
-    writeRGBA8(g_ramp, RAMP_W, RAMP_H, rgba);
-    DCFlushRange(g_ramp, RAMP_W * RAMP_H * 4);
-    GX_InvalidateTexAll();
+    writeRGBA8(dst, RAMP_W, RAMP_H, rgba);
+}
+
+void bindUiRamp() {
+    GX_LoadTexObj(&g_uiRampObj, GX_TEXMAP7);
+    GXColor rim = {150, 140, 120, 255};
+    GX_SetTevKColor(GX_KCOLOR0, rim);
 }
 
 void beginScene(const Camera &cam) {
@@ -187,6 +210,8 @@ void beginScene(const Camera &cam) {
     GX_SetTevKColor(GX_KCOLOR0, g_env.rimColor);
     invalidateState();
 }
+
+void setKonst(GXColor c) { GX_SetTevKColor(GX_KCOLOR1, c); }
 
 void setTint(GXColor c) {
     if (g_tintValid && memcmp(&c, &g_tint, sizeof(c)) == 0) return;
@@ -219,7 +244,8 @@ void setShade(u32 f) {
     u32 ntg = 0;
     if (tex) {
         tcTex = (u8)(GX_TEXCOORD0 + ntg);
-        GX_SetTexCoordGen(tcTex, GX_TG_MTX2x4, GX_TG_TEX0, GX_IDENTITY);
+        if (f & SH_TEXPOS) GX_SetTexCoordGen(tcTex, GX_TG_MTX2x4, GX_TG_POS, GX_TEXMTX0);
+        else GX_SetTexCoordGen(tcTex, GX_TG_MTX2x4, GX_TG_TEX0, GX_IDENTITY);
         ntg++;
     }
     if (lit) {
@@ -262,6 +288,16 @@ void setShade(u32 f) {
         GX_SetTevAlphaOp(st, GX_TEV_ADD, GX_TB_ZERO, GX_CS_SCALE_1, GX_TRUE, GX_TEVPREV);
         st++;
     }
+    if (f & SH_KONSTCOL) {
+        GX_SetTevOrder(st, GX_TEXCOORDNULL, GX_TEXMAP_NULL, GX_COLORNULL);
+        GX_SetTevKColorSel(st, GX_TEV_KCSEL_K1);
+        GX_SetTevKAlphaSel(st, GX_TEV_KASEL_K1_A);
+        GX_SetTevColorIn(st, GX_CC_ZERO, GX_CC_CPREV, GX_CC_KONST, GX_CC_ZERO);
+        GX_SetTevAlphaIn(st, GX_CA_ZERO, GX_CA_APREV, GX_CA_KONST, GX_CA_ZERO);
+        GX_SetTevColorOp(st, GX_TEV_ADD, GX_TB_ZERO, GX_CS_SCALE_1, GX_TRUE, GX_TEVPREV);
+        GX_SetTevAlphaOp(st, GX_TEV_ADD, GX_TB_ZERO, GX_CS_SCALE_1, GX_TRUE, GX_TEVPREV);
+        st++;
+    }
     GX_SetNumTevStages(st);
 
     // pixel engine
@@ -281,18 +317,20 @@ void setShade(u32 f) {
     applyFog(!(f & SH_NOFOG));
 }
 
-bool visible(const Vec3 &c, f32 r) {
+static bool visibleImpl(const Vec3 &c, f32 r, bool fogCull) {
     Vec3 v = g_cam.view.point(c);
     f32 d = -v.z;
     if (d + r < g_cam.nearZ) return false;
     if (d - r > g_cam.farZ) return false;
-    if (d - r > g_env.fogEnd + 10.0f) return false;   // fully fogged
+    if (fogCull && d - r > g_env.fogEnd + 10.0f) return false;   // fully fogged
     f32 kx = sqrtf(1.0f + g_cam.tanX * g_cam.tanX);
     f32 ky = sqrtf(1.0f + g_cam.tanY * g_cam.tanY);
     if (fabsf(v.x) > d * g_cam.tanX + r * kx) return false;
     if (fabsf(v.y) > d * g_cam.tanY + r * ky) return false;
     return true;
 }
+
+bool visible(const Vec3 &c, f32 r) { return visibleImpl(c, r, true); }
 
 f32 viewDepth(const Vec3 &p) { return -g_cam.view.point(p).z; }
 
@@ -315,7 +353,7 @@ void loadWorld(const Mat34 &world) {
 void drawModel(const Model *m, const Mat34 &world, GXColor tint, u32 extra) {
     if (!m) return;
     f32 s = maxScale(world);
-    if (!visible(world.point(m->center), m->radius * s)) {
+    if (!visibleImpl(world.point(m->center), m->radius * s, !(extra & SH_NOFOG))) {
         g_stats.culled++;
         return;
     }
@@ -330,6 +368,27 @@ void drawModel(const Model *m, const Mat34 &world, GXColor tint, u32 extra) {
         if (f & SH_TEX) tex::bind(m->tex[b.texSlot], GX_TEXMAP0);
         GX_CallDispList(b.dl, b.dlSize);
         g_stats.batches++;
+    }
+}
+
+void drawModelRaw(const Model *m, const Mat34 &mv, GXColor tint, u32 extra) {
+    if (!m) return;
+    GX_LoadPosMtxImm((f32(*)[4])mv.m, GX_PNMTX0);
+    f32 s = maxScale(mv);
+    Mat34 n = mv;
+    f32 is = s > 1e-6f ? 1.0f / s : 1.0f;
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++) n.m[r][c] *= is;
+    GX_LoadNrmMtxImm(n.m, GX_PNMTX0);
+    GX_SetCurrentMtx(GX_PNMTX0);
+    setupModelArrays(m, false);
+    for (int i = 0; i < m->numBatches; i++) {
+        const ModelBatch &b = m->batches[i];
+        u32 f = batchShade(m, b, extra);
+        setShade(f);
+        if (!(f & SH_VCOL)) setTint(tint);
+        if (f & SH_TEX) tex::bind(m->tex[b.texSlot], GX_TEXMAP0);
+        GX_CallDispList(b.dl, b.dlSize);
     }
 }
 

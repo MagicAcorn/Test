@@ -48,6 +48,8 @@ enum ShadeFlags : u32 {
     SH_NOZTEST = 512,
     SH_DETAIL2X = 1024,  // texture is a grey detail map: tex*2*vcol
     SH_NOZWRITE = 2048,
+    SH_TEXPOS = 4096,    // texcoord0 generated from position via GX_TEXMTX0
+    SH_KONSTCOL = 8192,  // multiply by KONST colour K1 (fades, tints of vertex-coloured meshes)
 };
 
 namespace gfx {
@@ -63,6 +65,7 @@ const Mat34 &view();
 // Configure the TEV/channels/texgens for a shading flag set. Cached.
 void setShade(u32 flags);
 void setTint(GXColor c);              // material colour for COLOR0 (when no vertex colour)
+void setKonst(GXColor c);             // colour used by SH_KONSTCOL
 void invalidateState();
 // Call after changing the vertex descriptor outside the renderer.
 void vcdChanged();
@@ -75,6 +78,11 @@ f32 viewDepth(const Vec3 &p);
 void drawModel(const Model *m, const Mat34 &world, GXColor tint = gxc(255, 255, 255), u32 extraFlags = 0);
 // Skinned model; drawMtx are model-space matrices from anim::drawMatrices.
 void drawSkinned(const Model *m, const Mat34 &world, const Mat34 *drawMtx, GXColor tint = gxc(255, 255, 255), u32 extraFlags = 0);
+
+// Draws with mv used directly as the position matrix (no camera, no culling).
+void drawModelRaw(const Model *m, const Mat34 &mv, GXColor tint, u32 extraFlags);
+// Binds a fixed daylight ramp (for UI icons) to TEXMAP7.
+void bindUiRamp();
 
 // Loads view*world into PNMTX0 (and its normal matrix) and selects it.
 void loadWorld(const Mat34 &world);
