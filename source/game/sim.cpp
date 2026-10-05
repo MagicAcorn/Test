@@ -276,7 +276,7 @@ void drawUi() {
     if (s_event >= 0) {
         char b[64];
         snprintf(b, sizeof(b), "%s  %d:%02d", EVENTS[s_event].title, (int)s_eventTimer / 60, (int)s_eventTimer % 60);
-        f32 W = (f32)plat::screenW();
+        f32 W = ui::width();
         ui::panel(W - 250, 266, 232, 26, ui::rgba(90, 50, 20, 190), 9);
         ui::text(FONT_SMALL, W - 134, 270, b, ui::GOLD, AL_CENTER);
     }

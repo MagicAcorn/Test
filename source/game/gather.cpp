@@ -327,7 +327,7 @@ void drawUi() {
     if (s_node < 0) return;
     Node &n = g.nodes[s_node];
     const NodeDef *d = nodeDef(n.type);
-    f32 W = (f32)plat::screenW();
+    f32 W = ui::width();
     f32 x = W - 300, y = 150, w = 280;
     f32 h = 92 + s_numLoot * 48;
     ui::panel(x, y, w, h, ui::PANEL);
@@ -531,7 +531,7 @@ void drawWorld() {
 }
 
 void drawFishingUi() {
-    f32 W = (f32)plat::screenW(), H = (f32)plat::screenH();
+    f32 W = ui::width(), H = ui::height();
     f32 x = W * 0.5f;
     const char *msg = nullptr;
     switch (f_state) {

@@ -72,7 +72,7 @@ void titleUpdate(f32 dt) {
 }
 
 void titleDraw() {
-    f32 W = (f32)plat::screenW(), H = (f32)plat::screenH();
+    f32 W = ui::width(), H = ui::height();
     ui::rectGradient(0, 0, W, 170, ui::rgba(0, 0, 0, 140), ui::rgba(0, 0, 0, 0));
     f32 glow = 0.85f + 0.15f * sinf(s_titleT * 1.5f);
     ui::text(FONT_TITLE, W * 0.5f, 52, "HEARTHVALE", ui::rgba(255, (u8)(200 * glow + 30), 120), AL_CENTER);
@@ -83,8 +83,8 @@ void titleDraw() {
         bool enabled = i == 1 || s_hasSave;
         bool sel = i == s_titleSel;
         f32 w = 220;
-        ui::panel(W * 0.5f - w * 0.5f, y + i * 50, w, 40, sel ? ui::rgba(255, 200, 110, 230) : ui::rgba(30, 26, 40, 200), 14);
-        ui::text(FONT_UI, W * 0.5f, y + i * 50 + 9, opts[i], sel ? ui::rgba(40, 30, 20) : (enabled ? ui::WHITE : ui::TEXT_DIM), AL_CENTER);
+        ui::panel(W * 0.5f - w * 0.5f, y + i * 50, w, 40, sel ? ui::SEL : ui::rgba(30, 26, 40, 200), 14);
+        ui::text(FONT_UI, W * 0.5f, y + i * 50 + 9, opts[i], (sel || enabled) ? ui::WHITE : ui::TEXT_DIM, AL_CENTER);
     }
     ui::text(FONT_SMALL, W * 0.5f, H - 34, "Press START", ui::rgba(255, 255, 255, (u8)(160 + 90 * sinf(s_titleT * 3))), AL_CENTER);
     ui::text(FONT_SMALL, 16, H - 34, "Art: KayKit by Kay Lousberg (CC0)", ui::rgba(255, 255, 255, 120));
@@ -144,7 +144,7 @@ void createUpdate(f32 dt) {
 }
 
 void createDraw() {
-    f32 W = (f32)plat::screenW(), H = (f32)plat::screenH();
+    f32 W = ui::width(), H = ui::height();
     // draw the preview character over the scene (it is rendered in 3D by createDraw3D)
     ui::text(FONT_BIG, 40, 24, "Create your adventurer", ui::GOLD, AL_LEFT, 0.85f);
     static const char *const LOOKS[] = {"Knight", "Barbarian", "Mage", "Rogue", "Hooded Rogue"};
@@ -157,8 +157,8 @@ void createDraw() {
     f32 x = 40, y = 110;
     for (int r = 0; r < 4; r++) {
         bool sel = r == s_row;
-        ui::panel(x, y + r * 62, 280, 52, sel ? ui::rgba(255, 200, 110, 230) : ui::rgba(30, 26, 40, 210), 14);
-        GXColor tc = sel ? ui::rgba(40, 30, 20) : ui::WHITE;
+        ui::panel(x, y + r * 62, 280, 52, sel ? ui::SEL : ui::rgba(30, 26, 40, 210), 14);
+        GXColor tc = ui::WHITE;
         if (r < 3) {
             ui::text(FONT_SMALL, x + 16, y + r * 62 + 6, labels[r], sel ? ui::rgba(90, 60, 30) : ui::TEXT_DIM);
             ui::text(FONT_UI, x + 140, y + r * 62 + 22, vals[r], tc, AL_CENTER);
@@ -228,7 +228,7 @@ void cutsceneUpdate(f32 dt) {
 }
 
 void cutsceneDraw() {
-    f32 W = (f32)plat::screenW(), H = (f32)plat::screenH();
+    f32 W = ui::width(), H = ui::height();
     ui::rect(0, 0, W, 44, ui::rgba(0, 0, 0, 255));
     ui::rect(0, H - 44, W, 44, ui::rgba(0, 0, 0, 255));
     fx::drawFloatTexts();

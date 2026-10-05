@@ -28,7 +28,11 @@ CFLAGS		=	-O2 -Wall -Wno-missing-braces $(MACHDEP) $(INCLUDE) -ffast-math -fno-s
 CXXFLAGS	=	$(CFLAGS) -std=gnu++17 -fno-exceptions -fno-rtti
 LDFLAGS		=	$(MACHDEP) -Wl,-Map,$(notdir $@).map
 
-LIBS		:=	-laesnd -logc -lm
+ifeq ($(PLATFORM),wii)
+LIBS		:=	-lfat -lwiiuse -lbte -logc -lm
+else
+LIBS		:=	-logc -lm
+endif
 LIBDIRS		:=
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))

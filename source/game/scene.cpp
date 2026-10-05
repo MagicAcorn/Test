@@ -1,4 +1,6 @@
 #include "game/scene.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "game/world.h"
 #include "gfx/sky.h"
 #include "gfx/terrain.h"
@@ -27,10 +29,26 @@ void drawSkyAndTerrain(f32 time) {
     terrain::draw();
 }
 
+#ifdef HV_PC
+// HV_OBJSTATS=<frame>: list the models costing the most vertices on that frame
+struct ObjStat {
+    const Model *m;
+    u32 verts, count;
+};
+static ObjStat s_objStats[400];
+static int s_objStatN = 0;
+#endif
+
 void drawObjects() {
     const Camera &cam = gfx::camera();
     g_drawn = 0;
     f32 fogEnd = gfx::env().fogEnd;
+#ifdef HV_PC
+    static int statFrame = getenv("HV_OBJSTATS") ? atoi(getenv("HV_OBJSTATS")) : -1;
+    static int frameNo = 0;
+    bool stats = ++frameNo == statFrame;
+    s_objStatN = 0;
+#endif
     for (int i = 0; i < g_world.numObjects(); i++) {
         const WorldObject &o = g_world.object(i);
         if (!o.model) continue;
@@ -38,9 +56,39 @@ void drawObjects() {
         f32 maxD = o.small ? 75.0f : (o.foliage ? fogEnd - 10.0f : fogEnd + 10.0f);
         if (d > maxD) continue;
         if (!gfx::visible(o.cullCenter, o.cullRadius)) continue;
+#ifdef HV_PC
+        GXEmuStats st0, st1;
+        if (stats) gxemu_get_stats(&st0);
+#endif
         gfx::drawModel(o.model, o.xf, gxc(255, 255, 255), o.foliage ? SH_RIM : 0);
+#ifdef HV_PC
+        if (stats) {
+            gxemu_get_stats(&st1);
+            int k = 0;
+            while (k < s_objStatN && s_objStats[k].m != o.model) k++;
+            if (k == s_objStatN && k < 400) s_objStats[s_objStatN++] = {o.model, 0, 0};
+            if (k < 400) {
+                s_objStats[k].verts += st1.verts - st0.verts;
+                s_objStats[k].count++;
+            }
+        }
+#endif
         g_drawn++;
     }
+#ifdef HV_PC
+    if (stats) {
+        for (int a = 0; a < s_objStatN; a++)
+            for (int b = a + 1; b < s_objStatN; b++)
+                if (s_objStats[b].verts > s_objStats[a].verts) {
+                    ObjStat t = s_objStats[a];
+                    s_objStats[a] = s_objStats[b];
+                    s_objStats[b] = t;
+                }
+        for (int a = 0; a < s_objStatN && a < 25; a++)
+            printf("[objstats] %08x x%-3u verts %6u (%u each)\n", s_objStats[a].m->hash, s_objStats[a].count, s_objStats[a].verts,
+                   s_objStats[a].verts / s_objStats[a].count);
+    }
+#endif
 }
 
 void drawWaterAndGrass(f32 time) {

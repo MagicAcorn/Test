@@ -339,7 +339,7 @@ void update(f32 dt) {
 }
 
 void drawSelectUi() {
-    f32 W = (f32)plat::screenW();
+    f32 W = ui::width();
     f32 x = 24, y = 70, w = 360, h = 360;
     ui::panel(x, y, w, h, ui::PANEL);
     char b[96];
@@ -396,7 +396,7 @@ void drawSelectUi() {
 void drawUi() {
     if (s_recipe < 0) return;
     const Recipe &r = RECIPES[s_recipe];
-    f32 W = (f32)plat::screenW(), H = (f32)plat::screenH();
+    f32 W = ui::width(), H = ui::height();
     f32 w = 420, h = 200;
     f32 x = (W - w) * 0.5f, y = 40;
     ui::panel(x, y, w, h, ui::PANEL);

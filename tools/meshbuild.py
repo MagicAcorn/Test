@@ -11,6 +11,7 @@ import struct
 import numpy as np
 
 GX_TRIANGLES = 0x90
+GX_TRIANGLESTRIP = 0x98
 MAX_MTX_PER_BATCH = 10
 
 # model flags
@@ -94,6 +95,132 @@ class _UnusedDedup:
         return i
 
 
+def decimate_parts(parts, cell, origin):
+    """Vertex-clustering LOD: snaps vertices to a grid of `cell` size and drops
+    collapsed triangles. Positions are clustered (per draw matrix for skinned
+    meshes, so limbs never fuse), while every corner keeps its own normal, UV
+    and colour, so colour regions stay sharp and no cracks open between them."""
+    out = []
+    for p in parts:
+        key = np.floor((p.pos - origin) / cell).astype(np.int64)
+        if p.dmtx is not None:
+            key = np.concatenate([key, p.dmtx[:, None]], axis=1)
+        ukey, cl = np.unique(key, axis=0, return_inverse=True)
+        cl = cl.reshape(-1)
+        nc = len(ukey)
+        cnt = np.bincount(cl, minlength=nc).astype(np.float64)
+        mean = np.stack([np.bincount(cl, weights=p.pos[:, k], minlength=nc) for k in range(3)], axis=1) / cnt[:, None]
+        pos = mean[cl]
+        idx = p.idx
+        c = cl[idx]
+        keep = (c[:, 0] != c[:, 1]) & (c[:, 1] != c[:, 2]) & (c[:, 0] != c[:, 2])
+        idx = idx[keep]
+        c = c[keep]
+        if len(idx) == 0:
+            continue
+        # drop duplicate triangles (same clusters, same winding)
+        r = np.argmin(c, axis=1)
+        rot = np.stack([np.take_along_axis(c, ((r + k) % 3)[:, None], axis=1)[:, 0] for k in range(3)], axis=1)
+        _, first = np.unique(rot, axis=0, return_index=True)
+        idx = idx[np.sort(first)]
+        q = Part(pos, idx, p.nrm, p.uv, p.clr, p.tex, p.flags, p.dmtx)
+        out.append(q)
+    return out
+
+
+def make_lod(parts, target_ratio):
+    """Finest vertex-clustering LOD whose triangle count is <= target_ratio of the original."""
+    allpos = np.concatenate([p.pos for p in parts])
+    bmin, bmax = allpos.min(axis=0), allpos.max(axis=0)
+    size = float(np.max(bmax - bmin))
+    total = sum(len(p.idx) for p in parts)
+    best = None
+    for k in (48, 40, 34, 28, 24, 20, 17, 14, 12, 10, 8, 6):
+        cell = size / k
+        lod = decimate_parts(parts, cell, bmin - cell * 0.37)
+        n = sum(len(p.idx) for p in lod)
+        if n == 0:
+            break
+        best = (lod, n, k)
+        if n <= total * target_ratio:
+            break
+    return best
+
+
+def stripify(tris):
+    """Greedy triangle stripper. tris: (N,3) int array of vertex ids in GX
+    winding. GX strips alternate orientation like OpenGL: triangle t of a strip
+    is (s[t], s[t+1], s[t+2]) when t is even and (s[t+1], s[t], s[t+2]) when odd.
+    Returns (strips, singles): lists of vertex-id lists and leftover triangles."""
+    tris = [tuple(t) for t in np.asarray(tris).tolist()]
+    n = len(tris)
+    edge = {}
+    for i, (a, b, c) in enumerate(tris):
+        if a == b or b == c or a == c:
+            continue
+        edge.setdefault((a, b), []).append((i, c))
+        edge.setdefault((b, c), []).append((i, a))
+        edge.setdefault((c, a), []).append((i, b))
+    used = bytearray(n)
+    for i, (a, b, c) in enumerate(tris):
+        if a == b or b == c or a == c:
+            used[i] = 1   # drop degenerate triangles
+
+    def free_neighbours(i):
+        a, b, c = tris[i]
+        k = 0
+        for x, y in ((b, a), (c, b), (a, c)):
+            for j, _ in edge.get((x, y), ()):
+                if not used[j] and j != i:
+                    k += 1
+        return k
+
+    def grow(start, rot, mark):
+        a, b, c = tris[start]
+        s = [a, b, c] if rot == 0 else ([b, c, a] if rot == 1 else [c, a, b])
+        taken = [start]
+        local = {start}
+        while True:
+            t = len(s) - 2       # index of the next triangle
+            x, y = (s[-2], s[-1]) if t % 2 == 0 else (s[-1], s[-2])
+            nxt = None
+            best = 99
+            for j, r in edge.get((x, y), ()):
+                if used[j] or j in local:
+                    continue
+                # prefer the neighbour with the fewest free neighbours (keeps future options)
+                fn = free_neighbours(j)
+                if fn < best:
+                    best = fn
+                    nxt = (j, r)
+            if nxt is None:
+                break
+            local.add(nxt[0])
+            taken.append(nxt[0])
+            s.append(nxt[1])
+        if mark:
+            for j in taken:
+                used[j] = 1
+        return s, taken
+
+    order = sorted(range(n), key=free_neighbours)
+    strips, singles = [], []
+    for i in order:
+        if used[i]:
+            continue
+        best = None
+        for rot in range(3):
+            s, taken = grow(i, rot, False)
+            if best is None or len(taken) > best[1]:
+                best = (rot, len(taken))
+        s, taken = grow(i, best[0], True)
+        if len(taken) == 1:
+            singles.append(s)
+        else:
+            strips.append(s)
+    return strips, singles
+
+
 def build_batches_skinned(tri_mtx_sets):
     """Greedy grouping of triangles so each batch references <= 10 draw matrices.
     tri_mtx_sets: list of frozensets. Returns list of (matrix list, triangle index list)."""
@@ -126,7 +253,7 @@ def build_batches_skinned(tri_mtx_sets):
     return batches
 
 
-def build_model(parts, tex_names=None, skin=None, name='?'):
+def build_model(parts, tex_names=None, skin=None, name='?', lod_hash=0, lod_dist=0.0):
     """parts: list[Part]. skin: dict(num_joints, envelopes=[[(joint,weight),...]], skel_hash)
     Returns (bytes, stats)."""
     skinned = skin is not None
@@ -208,16 +335,25 @@ def build_model(parts, tex_names=None, skin=None, name='?'):
             rec = np.zeros(len(tri), dtype=[(f, t) for f, t, _ in fields])
             for f, t, v in fields:
                 rec[f] = v
-            raw = rec.tobytes()
-            vsize = rec.dtype.itemsize
+            # identify identical vertex records, then build triangle strips
+            urec, vid = np.unique(rec, return_inverse=True)
+            vid = vid.reshape(-1, 3)
+            strips, singles = stripify(vid)
+            vsize = urec.dtype.itemsize
             out = bytearray()
-            per = 65535 - 65535 % 3
-            for start in range(0, len(tri), per):
-                cnt = min(per, len(tri) - start)
-                out += struct.pack('>BH', GX_TRIANGLES, cnt)
-                out += raw[start * vsize:(start + cnt) * vsize]
+            for st in strips:
+                out += struct.pack('>BH', GX_TRIANGLESTRIP, len(st))
+                out += urec[np.asarray(st, np.int64)].tobytes()
+            if singles:
+                flat = np.asarray(singles, np.int64).reshape(-1)
+                per = 65535 - 65535 % 3
+                for start in range(0, len(flat), per):
+                    cnt = min(per, len(flat) - start)
+                    out += struct.pack('>BH', GX_TRIANGLES, cnt)
+                    out += urec[flat[start:start + cnt]].tobytes()
             batch_blobs.append((_align(bytes(out)), texslot, p.flags, mtx_list))
             stats['tris'] += len(tri) // 3
+            stats['dlverts'] = stats.get('dlverts', 0) + sum(len(st) for st in strips) + 3 * len(singles)
             stats['batches'] += 1
 
     pos_arr = _align(upos.astype('>i2').tobytes())
@@ -262,6 +398,8 @@ def build_model(parts, tex_names=None, skin=None, name='?'):
     hdr += struct.pack('>I', skin['skel_hash'] if skinned else 0)
     hdr += struct.pack('>4I', *tex_hashes)
     hdr += struct.pack('>B', len(textures))
+    hdr = hdr + b'\0' * (112 - len(hdr))
+    hdr += struct.pack('>If', lod_hash, lod_dist)
     hdr = hdr + b'\0' * (HDR - len(hdr))
     assert len(hdr) == HDR, len(hdr)
 

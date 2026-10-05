@@ -186,9 +186,9 @@ Vec3 screenProject(const Vec3 &p, bool *onScreen) {
     if (w <= 0.01f) w = 0.01f;
     f32 x = g.cam.proj.m[0][0] * v.x / w;
     f32 y = g.cam.proj.m[1][1] * v.y / w;
-    f32 sx = (x * 0.5f + 0.5f) * plat::screenW();
-    f32 sy = (0.5f - y * 0.5f) * plat::screenH();
-    if (onScreen && (sx < -40 || sx > plat::screenW() + 40 || sy < -40 || sy > plat::screenH() + 40)) *onScreen = false;
+    f32 sx = (x * 0.5f + 0.5f) * ui::width();
+    f32 sy = (0.5f - y * 0.5f) * ui::height();
+    if (onScreen && (sx < -40 || sx > ui::width() + 40 || sy < -40 || sy > ui::height() + 40)) *onScreen = false;
     return Vec3(sx, sy, w);
 }
 
@@ -416,28 +416,99 @@ void cutsceneDraw();
 bool cutsceneActive();
 void createDraw3D();
 
+#ifdef HV_PC
+// Per-section GPU load report for the PC harness (HV_PROFILE=<frame>).
+namespace {
+struct ProfSec {
+    const char *name;
+    GXEmuStats st;
+};
+ProfSec s_prof[24];
+int s_profN = 0;
+GXEmuStats s_profPrev;
+int s_profFrame = -2;
+void profBegin() {
+    if (s_profFrame == -2) s_profFrame = getenv("HV_PROFILE") ? atoi(getenv("HV_PROFILE")) : -1;
+    tex::takeLoadCount();
+    s_profN = 0;
+    gxemu_get_stats(&s_profPrev);
+}
+void profMark(const char *name) {
+    if (s_profN >= 24) return;
+    GXEmuStats now;
+    gxemu_get_stats(&now);
+    ProfSec &p = s_prof[s_profN++];
+    p.name = name;
+    p.st.verts = now.verts - s_profPrev.verts;
+    p.st.tris_in = now.tris_in - s_profPrev.tris_in;
+    p.st.prims = now.prims - s_profPrev.prims;
+    p.st.dl_calls = now.dl_calls - s_profPrev.dl_calls;
+    p.st.mtx_loads = now.mtx_loads - s_profPrev.mtx_loads;
+    s_profPrev = now;
+}
+void profReport() {
+    if (s_profFrame < 0 || (int)g.frame != s_profFrame) return;
+    GXEmuStats t = {};
+    printf("[prof] frame %u  %-14s %8s %8s %6s %6s %6s\n", g.frame, "section", "verts", "tris", "prims", "dls", "mtx");
+    for (int i = 0; i < s_profN; i++) {
+        const GXEmuStats &s = s_prof[i].st;
+        printf("[prof]   %-20s %8u %8u %6u %6u %6u\n", s_prof[i].name, s.verts, s.tris_in, s.prims, s.dl_calls, s.mtx_loads);
+        t.verts += s.verts;
+        t.tris_in += s.tris_in;
+        t.prims += s.prims;
+        t.dl_calls += s.dl_calls;
+        t.mtx_loads += s.mtx_loads;
+    }
+    printf("[prof]   %-20s %8u %8u %6u %6u %6u\n", "TOTAL", t.verts, t.tris_in, t.prims, t.dl_calls, t.mtx_loads);
+    const gfx::Stats &gs = gfx::stats();
+    printf("[prof]   models %u skinned %u batches %u culled %u shade changes %u tex loads %u\n", gs.models, gs.skinned, gs.batches,
+           gs.culled, gs.shadeChanges, tex::takeLoadCount());
+}
+}  // namespace
+#define PROF_BEGIN() profBegin()
+#define PROF(n) profMark(n)
+#define PROF_REPORT() profReport()
+#else
+#define PROF_BEGIN()
+#define PROF(n)
+#define PROF_REPORT()
+#endif
+
 static void drawWorld() {
+    PROF_BEGIN();
     scene::drawSkyAndTerrain(g.time);
+    PROF("sky+terrain");
     scene::drawObjects();
+    PROF("objects");
     nodes::draw();
+    PROF("nodes");
     // shadows before characters
     if (g.mode != MODE_TITLE) actors::drawShadow(g.player);
     for (Actor &a : g.actors)
         if (a.active && distXZ(a.pos, g.cam.eye) < 70) actors::drawShadow(a);
+    PROF("shadows");
     if (g.mode != MODE_TITLE && g.mode != MODE_CREATE) actors::draw(g.player);
     createDraw3D();
+    PROF("player");
     npcs::draw();
+    PROF("npcs");
     for (Actor &a : g.actors)
         if (a.active && a.kind == AK_ADVENTURER && distXZ(a.pos, g.cam.eye) < 70) actors::draw(a);
+    PROF("adventurers");
     combat::draw();
+    PROF("enemies");
     gather::drawWorld();
     sky::drawClouds();
+    PROF("clouds");
     scene::drawWaterAndGrass(g.time);
+    PROF("water+grass");
     fx::draw();
     scene::drawLightGlows(g.time);
+    PROF("fx+glows");
 }
 
 static void drawUi() {
+    PROF("(world end)");
     ui::begin();
     ui::setTime(g.time);
     switch (g.mode) {
@@ -457,8 +528,10 @@ static void drawUi() {
     if (g.mode == MODE_SHOP || g.mode == MODE_BOARD) shop::drawUi();
     if (g.mode == MODE_MENU) hud::drawMenu();
     // fade from black
-    if (g.fadeIn > 0) ui::rect(0, 0, (f32)plat::screenW(), (f32)plat::screenH(), ui::rgba(0, 0, 0, (u8)(hvSaturate(g.fadeIn) * 255)));
+    if (g.fadeIn > 0) ui::rect(0, 0, ui::width(), ui::height(), ui::rgba(0, 0, 0, (u8)(hvSaturate(g.fadeIn) * 255)));
     ui::end();
+    PROF("ui");
+    PROF_REPORT();
 }
 
 #ifdef HV_PC
@@ -529,7 +602,7 @@ void gameFrame() {
     audio::update(dt);
 
     // ---- render
-    g.cam.update((f32)plat::screenW() / plat::screenH());
+    g.cam.update(ui::aspect());
     GX_SetCopyClear(gfx::env().fogColor, 0x00FFFFFF);
     gfx::beginScene(g.cam);
     drawWorld();
@@ -540,6 +613,7 @@ void gameFrame() {
 void gameInitWorld() {
     scene::init();
     ui::init();
+    ui::setWidescreen(plat::widescreen());
     actors::init();
     initStations();
     nodes::init();

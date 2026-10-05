@@ -27,7 +27,8 @@ struct Font {
 Font g_fonts[FONT_COUNT];
 const Texture *g_panel, *g_panelSharp, *g_buttons, *g_bar, *g_circle, *g_minimap;
 f32 g_time = 0;
-f32 g_W = 640, g_H = 480;
+f32 g_W = 640, g_H = 480;   // virtual UI resolution (854 x 480 in widescreen)
+bool g_wide = false;
 
 void loadFont(Font &f, const char *name) {
     memset(&f, 0, sizeof(f));
@@ -65,7 +66,7 @@ void setOrtho2D() {
     GX_LoadPosMtxImm(id.m, GX_PNMTX0);
     GX_LoadNrmMtxImm(id.m, GX_PNMTX0);
     GX_SetCurrentMtx(GX_PNMTX0);
-    GX_SetViewport(0, 0, g_W, g_H, 0, 1);
+    GX_SetViewport(0, 0, (f32)plat::screenW(), (f32)plat::screenH(), 0, 1);
 }
 
 void vcd2D(bool tex) {
@@ -108,6 +109,7 @@ const GXColor TEXT_DIM = {190, 186, 200, 255};
 const GXColor GREEN = {120, 230, 120, 255};
 const GXColor RED = {240, 96, 90, 255};
 const GXColor BLUE = {120, 180, 255, 255};
+const GXColor SEL = {214, 138, 52, 240};
 
 void init() {
     loadFont(g_fonts[FONT_UI], "font/ui");
@@ -124,9 +126,15 @@ void init() {
 
 void setTime(f32 t) { g_time = t; }
 
+void setWidescreen(bool on) { g_wide = on; }
+bool widescreen() { return g_wide; }
+f32 aspect() { return g_wide ? 16.0f / 9.0f : 4.0f / 3.0f; }
+f32 width() { return g_wide ? 854.0f : 640.0f; }
+f32 height() { return 480.0f; }
+
 void begin() {
-    g_W = (f32)plat::screenW();
-    g_H = (f32)plat::screenH();
+    g_W = width();
+    g_H = height();
     gfx::invalidateState();
     g_vcd = -1;
     setOrtho2D();
@@ -357,7 +365,7 @@ void iconModel(const Model *m, f32 x, f32 y, f32 size, f32 spin, GXColor tint) {
     // orthographic y-up projection in pixels, depth squeezed so icons sit in front of the 3D scene
     Mat44 p = orthoGX(g_H, 0, 0, g_W, -500, 500);
     GX_LoadProjectionMtx(p.m, GX_ORTHOGRAPHIC);
-    GX_SetViewport(0, 0, g_W, g_H, 0.0f, 0.001f);
+    GX_SetViewport(0, 0, (f32)plat::screenW(), (f32)plat::screenH(), 0.0f, 0.001f);
     f32 r = hvMax(m->radius, 0.05f);
     f32 s = size * 0.5f / r;
     f32 a = g_time * spin + x * 0.013f;

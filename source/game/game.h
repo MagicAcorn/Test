@@ -23,6 +23,8 @@ struct Inventory {
     void sort();
 };
 
+enum OptionFlags : u8 { OPT_WIDE_SET = 1, OPT_WIDE = 2 };
+
 enum QuestStatus : u8 { QST_LOCKED, QST_AVAILABLE, QST_ACTIVE, QST_DONE };
 struct QuestState {
     u8 status, step, progress, pad;
@@ -46,7 +48,8 @@ struct PlayerData {
     char name[20];
     u8 look;          // appearance (model index)
     u8 job;           // SK_WARRIOR / SK_MAGE
-    u8 pad0[2];
+    u8 options;       // OPT_* flags
+    u8 pad0;
     u32 xp[SK_COUNT];
     Inventory inv;
     u16 weapon, armor, accessory, pad1;

@@ -45,8 +45,26 @@ const Texture *get(u32 hash) {
     return nullptr;
 }
 
+// Only tex::bind loads maps 0-6, so redundant loads can be skipped.
+static const Texture *s_bound[8];
+static u32 s_loads;
+
 void bind(const Texture *t, u8 map) {
-    if (t) GX_LoadTexObj((GXTexObj *)&t->obj, map);
+    if (!t) return;
+    if (map < 8 && s_bound[map] == t) return;
+    if (map < 8) s_bound[map] = t;
+    GX_LoadTexObj((GXTexObj *)&t->obj, map);
+    s_loads++;
+}
+
+void resetBindings() {
+    for (auto &b : s_bound) b = nullptr;
+}
+
+u32 takeLoadCount() {
+    u32 n = s_loads;
+    s_loads = 0;
+    return n;
 }
 
 }  // namespace tex

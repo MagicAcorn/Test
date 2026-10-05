@@ -72,6 +72,9 @@ void vcdChanged();
 
 // Bounding sphere test against the current camera frustum (world space).
 bool visible(const Vec3 &center, f32 radius);
+// Distance multiplier for model LOD switches (lower = coarser sooner).
+void setLodScale(f32 s);
+f32 lodScale();
 f32 viewDepth(const Vec3 &p);
 
 // Static model.
@@ -93,7 +96,7 @@ inline void immV(f32 x, f32 y, f32 z) { GX_Position3f32(x, y, z); }
 
 // Stats for profiling overlay
 struct Stats {
-    u32 models, skinned, batches, culled;
+    u32 models, skinned, batches, culled, shadeChanges;
 };
 Stats &stats();
 

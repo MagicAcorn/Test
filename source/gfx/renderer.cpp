@@ -187,6 +187,7 @@ void bindUiRamp() {
 void beginScene(const Camera &cam) {
     g_cam = cam;
     g_stats = Stats();
+    tex::resetBindings();
     GX_SetViewport(0, 0, (f32)plat::screenW(), (f32)plat::screenH(), 0, 1);
     GX_SetScissor(0, 0, plat::screenW(), plat::screenH());
     GX_LoadProjectionMtx(g_cam.proj.m, GX_PERSPECTIVE);
@@ -223,6 +224,7 @@ void setTint(GXColor c) {
 void setShade(u32 f) {
     if (f == g_shadeKey) return;
     g_shadeKey = f;
+    g_stats.shadeChanges++;
     bool tex = (f & SH_TEX) != 0;
     bool vcol = (f & SH_VCOL) != 0;
     bool lit = (f & SH_LIT) != 0;
@@ -350,13 +352,33 @@ void loadWorld(const Mat34 &world) {
     GX_SetCurrentMtx(GX_PNMTX0);
 }
 
+static f32 g_lodScale = 1.0f;
+void setLodScale(f32 s) { g_lodScale = s; }
+f32 lodScale() { return g_lodScale; }
+
+// Walk the model's LOD chain for an object whose bounding centre is at `wc`.
+static const Model *pickLod(const Model *m, const Vec3 &wc, f32 scale) {
+    if (!m->lod) return m;
+    Vec3 d = wc - g_cam.eye;
+    f32 dist2 = dot(d, d);
+    f32 k = scale * g_lodScale;
+    while (m->lod) {
+        f32 sw = m->lodDist * k;
+        if (dist2 < sw * sw) break;
+        m = m->lod;
+    }
+    return m;
+}
+
 void drawModel(const Model *m, const Mat34 &world, GXColor tint, u32 extra) {
     if (!m) return;
     f32 s = maxScale(world);
-    if (!visibleImpl(world.point(m->center), m->radius * s, !(extra & SH_NOFOG))) {
+    Vec3 wc = world.point(m->center);
+    if (!visibleImpl(wc, m->radius * s, !(extra & SH_NOFOG))) {
         g_stats.culled++;
         return;
     }
+    m = pickLod(m, wc, s);
     g_stats.models++;
     loadWorld(world);
     setupModelArrays(m, false);
@@ -395,10 +417,12 @@ void drawModelRaw(const Model *m, const Mat34 &mv, GXColor tint, u32 extra) {
 void drawSkinned(const Model *m, const Mat34 &world, const Mat34 *drawMtx, GXColor tint, u32 extra) {
     if (!m || !(m->flags & MF_SKINNED)) return;
     f32 s = maxScale(world);
-    if (!visible(world.point(m->center), m->radius * s * 1.4f)) {
+    Vec3 wc = world.point(m->center);
+    if (!visible(wc, m->radius * s * 1.4f)) {
         g_stats.culled++;
         return;
     }
+    m = pickLod(m, wc, s);
     g_stats.skinned++;
     static Mat34 mvCache[160];
     static u8 mvValid[160];

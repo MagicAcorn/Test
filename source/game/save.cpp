@@ -37,12 +37,14 @@ bool read() {
     if (n < (s32)sizeof(PlayerData)) return false;
     if (tmp.version != SAVE_VERSION || tmp.checksum != checksum(tmp)) return false;
     g.pd = tmp;
+    if (g.pd.options & OPT_WIDE_SET) ui::setWidescreen((g.pd.options & OPT_WIDE) != 0);
     return true;
 }
 
 void newGame(const char *name, int look, int job) {
     memset(&g.pd, 0, sizeof(g.pd));
     g.pd.version = SAVE_VERSION;
+    g.pd.options = (u8)(ui::widescreen() ? OPT_WIDE : 0);
     snprintf(g.pd.name, sizeof(g.pd.name), "%s", name);
     g.pd.look = (u8)look;
     g.pd.job = (u8)job;

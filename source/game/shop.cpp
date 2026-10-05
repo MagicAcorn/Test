@@ -185,7 +185,7 @@ void update(f32 dt) {
 }
 
 void drawUi() {
-    f32 W = (f32)plat::screenW();
+    f32 W = ui::width();
     char b[96];
     if (s_board) {
         f32 x = W * 0.5f - 260, y = 70;
@@ -222,10 +222,10 @@ void drawUi() {
     f32 x = 40, y = 60, w = 380;
     ui::panel(x, y, w, 372, ui::PANEL);
     ui::text(FONT_BIG, x + 16, y + 6, "Pip's Wares", ui::GOLD, AL_LEFT, 0.75f);
-    ui::panel(x + 220, y + 12, 70, 28, s_tab == 0 ? ui::rgba(255, 200, 110, 230) : ui::rgba(60, 54, 74, 220), 8);
-    ui::text(FONT_SMALL, x + 255, y + 17, "Buy", s_tab == 0 ? ui::rgba(40, 30, 20) : ui::WHITE, AL_CENTER);
-    ui::panel(x + 296, y + 12, 70, 28, s_tab == 1 ? ui::rgba(255, 200, 110, 230) : ui::rgba(60, 54, 74, 220), 8);
-    ui::text(FONT_SMALL, x + 331, y + 17, "Sell", s_tab == 1 ? ui::rgba(40, 30, 20) : ui::WHITE, AL_CENTER);
+    ui::panel(x + 220, y + 12, 70, 28, s_tab == 0 ? ui::SEL : ui::rgba(60, 54, 74, 220), 8);
+    ui::text(FONT_SMALL, x + 255, y + 17, "Buy", ui::WHITE, AL_CENTER);
+    ui::panel(x + 296, y + 12, 70, 28, s_tab == 1 ? ui::SEL : ui::rgba(60, 54, 74, 220), 8);
+    ui::text(FONT_SMALL, x + 331, y + 17, "Sell", ui::WHITE, AL_CENTER);
     int count = s_tab == 0 ? NSTOCK : s_sellCount;
     for (int k = 0; k < 7 && s_scroll + k < count; k++) {
         int i = s_scroll + k;

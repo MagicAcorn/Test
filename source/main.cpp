@@ -40,6 +40,10 @@ int main(int argc, char **argv) {
     }
 #endif
     while (!plat::quitRequested()) gameFrame();
+#ifndef HV_PC
+    // HOME / reset / power: keep the player's progress
+    if (g.mode != MODE_TITLE && g.mode != MODE_CREATE && g.mode != MODE_DEAD) save::write();
+#endif
 #ifdef HV_PC
     GXEmuStats st;
     gxemu_get_stats(&st);

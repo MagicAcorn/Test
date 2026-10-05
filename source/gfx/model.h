@@ -32,6 +32,8 @@ struct Model {
     const Texture *tex[4];
     u8 numTex;
     u32 skelHash;
+    const Model *lod;   // coarser version used beyond lodDist (scaled by the model's world scale)
+    f32 lodDist;
 };
 
 namespace mdl {

@@ -944,7 +944,7 @@ void draw() {
 }
 
 void drawUi() {
-    f32 W = (f32)plat::screenW();
+    f32 W = ui::width();
     // enemy health bars above heads
     for (int i = 0; i < MAX_ACTORS; i++) {
         Actor &a = g.actors[i];
@@ -969,7 +969,7 @@ void drawUi() {
     }
     // cast bar
     if (g.castTimer > 0) {
-        f32 x = W * 0.5f - 110, y = plat::screenH() - 150.0f;
+        f32 x = W * 0.5f - 110, y = ui::height() - 150.0f;
         const Ability &ab = abilityDef(g.castAbility);
         ui::text(FONT_SMALL, W * 0.5f, y - 18, ab.name, ui::WHITE, AL_CENTER);
         ui::bar(x, y, 220, 8, 1.0f - g.castTimer / g.castTotal, ui::rgba(200, 150, 255));

@@ -27,6 +27,8 @@ Model *load(u32 hash) {
     u32 batchOff = rdU32(d + 80), envOff = rdU32(d + 84);
     m->skelHash = rdU32(d + 88);
     m->numTex = d[108];
+    u32 lodHash = rdU32(d + 112);
+    m->lodDist = rdF32(d + 116);
     for (int i = 0; i < m->numTex && i < 4; i++) m->tex[i] = tex::get(rdU32(d + 92 + i * 4));
     m->pos = (void *)(d + posOff);
     m->nrm = (void *)(d + nrmOff);
@@ -56,6 +58,7 @@ Model *load(u32 hash) {
             }
         }
     }
+    if (lodHash) m->lod = mdl::get(lodHash);
     return m;
 }
 }  // namespace

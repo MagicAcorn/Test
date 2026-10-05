@@ -203,7 +203,7 @@ void shutdown() {
 
 int screenW() { return 640; }
 int screenH() { return 480; }
-bool widescreen() { return false; }
+bool widescreen() { return getenv("HV_WIDE") != nullptr; }
 
 void endFrame() {
     GX_SetZMode(GX_TRUE, GX_LEQUAL, GX_TRUE);

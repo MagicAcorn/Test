@@ -16,8 +16,8 @@ f32 abilityCooldown(int i);
 namespace hud {
 
 namespace {
-f32 W() { return (f32)plat::screenW(); }
-f32 H() { return (f32)plat::screenH(); }
+f32 W() { return ui::width(); }
+f32 H() { return ui::height(); }
 
 void playerFrame() {
     Actor &p = g.player;
@@ -272,7 +272,7 @@ void drawBag() {
     for (int i = 0; i < Inventory::SIZE; i++) {
         f32 x = x0 + (i % COLS) * cell, y = y0 + (i / COLS) * cell;
         bool sel = i == g.menuSel;
-        ui::panel(x, y, cell - 6, cell - 6, sel ? ui::rgba(255, 210, 130, 200) : ui::rgba(60, 54, 74, 200), 8);
+        ui::panel(x, y, cell - 6, cell - 6, sel ? ui::SEL : ui::rgba(60, 54, 74, 200), 8);
         const InvSlot &s = g.pd.inv.slots[i];
         if (!s.item) continue;
         ui::icon(ITEMS[s.item].model, x + (cell - 6) * 0.5f, y + (cell - 6) * 0.5f, 34, sel ? 1.5f : 0.0f);
@@ -409,19 +409,21 @@ void drawMap() {
     ui::sprite(hvHash("tx/ui_circle"), px - pulse * 0.5f, pz - pulse * 0.5f, pulse, pulse, ui::rgba(255, 90, 80));
 }
 
+const int NSYS = 5;
 void drawSystem() {
-    f32 x = W() * 0.5f - 140, y = 120;
-    const char *opts[4] = {"Save Game", "Rest until morning", "Toggle Job (Warrior / Mage)", "Return to Title"};
-    for (int k = 0; k < 4; k++) {
+    f32 x = W() * 0.5f - 150, y = 96;
+    const char *opts[NSYS] = {"Save Game", "Rest until morning", "Toggle Job (Warrior / Mage)",
+                              ui::widescreen() ? "Screen: Widescreen 16:9" : "Screen: Standard 4:3", "Return to Title"};
+    for (int k = 0; k < NSYS; k++) {
         bool sel = k == s_sysSel;
-        ui::panel(x, y + k * 50, 280, 40, sel ? ui::rgba(255, 210, 130, 200) : ui::PANEL_DARK, 12);
-        ui::text(FONT_UI, x + 140, y + k * 50 + 9, opts[k], sel ? ui::rgba(40, 30, 20) : ui::WHITE, AL_CENTER);
+        ui::panel(x, y + k * 50, 300, 40, sel ? ui::SEL : ui::PANEL_DARK, 12);
+        ui::text(FONT_UI, x + 150, y + k * 50 + 9, opts[k], ui::WHITE, AL_CENTER);
     }
     char b[96];
     u32 s = g.pd.playSeconds;
     snprintf(b, sizeof(b), "Play time %u:%02u   Kills %u   Crafted %u (%u HQ)   Gathered %u", s / 3600, (s / 60) % 60, g.pd.kills,
              g.pd.crafted, g.pd.hqCrafted, g.pd.gathered);
-    ui::text(FONT_SMALL, W() * 0.5f, y + 220, b, ui::TEXT_DIM, AL_CENTER);
+    ui::text(FONT_SMALL, W() * 0.5f, y + NSYS * 50 + 14, b, ui::TEXT_DIM, AL_CENTER);
 }
 }  // namespace
 
@@ -433,8 +435,8 @@ void drawMenu() {
     for (int i = 0; i < NTABS; i++) {
         bool sel = i == g.menuTab;
         f32 w = ui::textWidth(FONT_UI, TABS[i]) + 26;
-        ui::panel(tx, 32, w, 34, sel ? ui::rgba(255, 200, 110, 230) : ui::rgba(60, 54, 74, 220), 10);
-        ui::text(FONT_UI, tx + 13, 37, TABS[i], sel ? ui::rgba(40, 30, 20) : ui::WHITE);
+        ui::panel(tx, 32, w, 34, sel ? ui::SEL : ui::rgba(60, 54, 74, 220), 10);
+        ui::text(FONT_UI, tx + 13, 37, TABS[i], ui::WHITE);
         tx += w + 8;
     }
     ui::glyph(GL_L, W() - 120, 34, 26);
@@ -520,8 +522,15 @@ void updateMenu(f32 dt) {
             if (pad.pressed & BTN_UP) g.menuSel = (g.menuSel + SK_COUNT - 2) % SK_COUNT;
             break;
         case 5:
-            if (pad.pressed & BTN_DOWN) { s_sysSel = (s_sysSel + 1) % 4; audio::sfx(SFX_UI_MOVE); }
-            if (pad.pressed & BTN_UP) { s_sysSel = (s_sysSel + 3) % 4; audio::sfx(SFX_UI_MOVE); }
+            if (pad.pressed & BTN_DOWN) { s_sysSel = (s_sysSel + 1) % NSYS; audio::sfx(SFX_UI_MOVE); }
+            if (pad.pressed & BTN_UP) { s_sysSel = (s_sysSel + NSYS - 1) % NSYS; audio::sfx(SFX_UI_MOVE); }
+            if (s_sysSel == 3 && (pad.pressed & (BTN_A | BTN_LEFT | BTN_RIGHT))) {
+                bool wide = !ui::widescreen();
+                ui::setWidescreen(wide);
+                g.pd.options = (u8)((g.pd.options & ~OPT_WIDE) | OPT_WIDE_SET | (wide ? OPT_WIDE : 0));
+                audio::sfx(SFX_UI_OK);
+                break;
+            }
             if (pad.pressed & BTN_A) {
                 if (s_sysSel == 0) save::write();
                 else if (s_sysSel == 1) {

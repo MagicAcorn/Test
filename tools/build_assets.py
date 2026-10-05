@@ -16,7 +16,7 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(__file__))
 import gxtex  # noqa: E402
 from gltfutil import Gltf  # noqa: E402
-from meshbuild import Part, build_model, fnv1a  # noqa: E402
+from meshbuild import Part, build_model, fnv1a, make_lod  # noqa: E402
 from pak import PakWriter  # noqa: E402
 from skelanim import Rig, anim_to_bytes  # noqa: E402
 import manifest  # noqa: E402
@@ -121,8 +121,39 @@ class Builder:
                 parts.append(part.transformed(m))
         return parts
 
-    def add_model(self, name, parts, skin=None):
-        data, st = build_model(parts, skin=skin, name=name)
+    # Distance LODs: models above LOD_MIN_TRIS get a "~1" (and big ones a "~2")
+    # vertex-clustered version; the engine swaps them by distance.
+    LOD_MIN_TRIS = 260
+    LOD_LEVELS = ((0.38, 11.0), (0.14, 26.0))   # (triangle ratio, switch distance in bounding radii)
+
+    def add_model(self, name, parts, skin=None, lod=True):
+        total = sum(len(p.idx) for p in parts)
+        lod_hash, lod_dist = 0, 0.0
+        if lod and total >= self.LOD_MIN_TRIS and not name.startswith(('ip/', 'itm/', 'ui/')):
+            allpos = np.concatenate([p.pos for p in parts])
+            radius = float(np.sqrt(((allpos - (allpos.min(0) + allpos.max(0)) / 2) ** 2).sum(1)).max())
+            chain = []
+            for level, (ratio, dist_r) in enumerate(self.LOD_LEVELS):
+                if level > 0 and total < 900:
+                    break
+                res = make_lod(parts, ratio)
+                if res is None:
+                    break
+                lparts, n, _ = res
+                if n > total * (ratio + 0.25) or n < 8:
+                    break
+                chain.append((lparts, max(radius * dist_r, 12.0 + 8.0 * level)))
+            # build from the coarsest level up so each level can point to the next
+            next_hash, next_dist = 0, 0.0
+            for level in range(len(chain) - 1, -1, -1):
+                lparts, dist = chain[level]
+                lname = '%s~%d' % (name, level + 1)
+                ldata, lst = build_model(lparts, skin=skin, name=lname, lod_hash=next_hash, lod_dist=next_dist)
+                self.pak.add(lname, 'MDL ', ldata)
+                self.report.append(('lod', lname, len(ldata), lst['tris'], lst['batches']))
+                next_hash, next_dist = fnv1a(lname), dist
+            lod_hash, lod_dist = next_hash, next_dist
+        data, st = build_model(parts, skin=skin, name=name, lod_hash=lod_hash, lod_dist=lod_dist)
         self.pak.add(name, 'MDL ', data)
         self.report.append(('mdl', name, len(data), st['tris'], st['batches']))
         return st

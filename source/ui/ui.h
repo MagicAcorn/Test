@@ -10,11 +10,19 @@ enum Glyph { GL_A, GL_B, GL_X, GL_Y, GL_Z, GL_L, GL_R, GL_START, GL_DPAD, GL_C, 
 
 namespace ui {
 void init();
+// The UI is laid out in a virtual 640x480 (4:3) or 854x480 (16:9) space that
+// is stretched over the framebuffer, so it stays correct on PAL and widescreen.
+void setWidescreen(bool on);
+bool widescreen();
+f32 aspect();
+f32 width();
+f32 height();
 void begin();              // switch to 2D (call after 3D scene)
 void end();
 
 // colours
 inline GXColor rgba(u8 r, u8 g, u8 b, u8 a = 255) { GXColor c = {r, g, b, a}; return c; }
+extern const GXColor SEL;   // highlight fill for the selected entry (white text on top)
 extern const GXColor WHITE, GOLD, PANEL, PANEL_DARK, TEXT_DIM, GREEN, RED, BLUE;
 
 void rect(f32 x, f32 y, f32 w, f32 h, GXColor c);

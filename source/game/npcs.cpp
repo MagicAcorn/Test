@@ -204,7 +204,7 @@ void updateDialogue(f32 dt) {
 }
 
 void drawDialogueUi() {
-    f32 W = (f32)plat::screenW(), H = (f32)plat::screenH();
+    f32 W = ui::width(), H = ui::height();
     const NpcDef *d = npcDef(g.dialogueNpc);
     f32 x = 40, w = W - 80, h = 128, y = H - h - 26;
     ui::panel(x, y, w, h, ui::rgba(28, 24, 36, 235));
