@@ -65,7 +65,7 @@ Vec3 routeVia(const Vec3 &target) {
             e0 = e1;
             e1 = t;
         }
-        f32 c = distXZ(p, e0) + distXZ(e1, target);
+        f32 c = distXZ(p, e0) + distXZ(e1, target) + (crossesWater(e1, target) ? 500.0f : 0.0f);
         if (c < bc) bc = c, best = i, nearEnd = e0, farEnd = e1;
     }
     if (best < 0) return target;
@@ -73,6 +73,8 @@ Vec3 routeVia(const Vec3 &target) {
     bool onBridge = fabsf(p.x - b.x) <= b.halfLen + 2.6f && fabsf(p.z - b.z) <= b.halfWidth;
     if (onBridge) {   // head for whichever end is on the target's side
         Vec3 e0(b.x - b.halfLen - 1.5f, 0, b.z), e1(b.x + b.halfLen + 1.5f, 0, b.z);
+        bool dry0 = !crossesWater(e0, target), dry1 = !crossesWater(e1, target);
+        if (dry0 != dry1) return dry0 ? e0 : e1;
         return distXZ(e0, target) < distXZ(e1, target) ? e0 : e1;
     }
     return nearEnd;
