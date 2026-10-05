@@ -23,6 +23,11 @@ struct Skeleton {
     f32 hipLift;
     s16 armL, armR;       // upper arms get rotated toward the body (animations were made for wide bodies)
     Quat armFixL, armFixR;
+    // procedural locomotion (athletic rigs): joint ids and rest world orientations
+    bool athletic;
+    s16 jSpine, jChest, jHead, jUA[2], jLA[2], jUL[2], jLL[2], jFoot[2];
+    Quat restWR[MAX_JOINTS];
+    f32 legLen;
     int findJoint(u32 nameHash) const;
 };
 
@@ -52,6 +57,9 @@ void restPose(const Skeleton *s, Pose &out);
 void sample(const AnimClip *c, f32 time, const Skeleton *s, Pose &out);
 void blend(Pose &a, const Pose &b, f32 w);   // a = lerp(a, b, w)
 void toModel(const Skeleton *s, const Pose &p, Mat34 *jointModel);
+// Procedural idle/walk/run for athletic rigs (overwrites the relevant joints).
+// phase: gait phase (radians), run: 0 walk..1 run, activity: 0 standing..1 moving.
+void locomotion(const Skeleton *s, Pose &p, f32 phase, f32 run, f32 activity, f32 time, bool combat);
 // Draw matrices (joint skin matrices followed by envelope blends), model space.
 void drawMatrices(const Model *m, const Skeleton *s, const Mat34 *jointModel, Mat34 *out);
 }  // namespace anim

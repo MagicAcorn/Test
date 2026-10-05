@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include "gfx/anim.h"
@@ -83,6 +84,26 @@ const Skeleton *skeleton(u32 hash) {
         for (int i = 0; i < MAX_JOINTS; i++) s.stretch[i] = s.uscale[i] = 1.0f;
     }
     s.armL = s.armR = -1;
+    s.athletic = found >= 8;
+    for (int i = 0; i < s.numJoints; i++) {
+        int par = s.parent[i];
+        s.restWR[i] = par >= 0 ? qnormalize(s.restWR[par] * s.restR[i]) : s.restR[i];
+    }
+    if (s.athletic) {
+        static const char *const SIDE[2] = {"l", "r"};
+        char b[32];
+        s.jSpine = (s16)s.findJoint(hvHash("spine"));
+        s.jChest = (s16)s.findJoint(hvHash("chest"));
+        s.jHead = (s16)s.findJoint(hvHash("head"));
+        for (int k = 0; k < 2; k++) {
+            snprintf(b, sizeof(b), "upperarm.%s", SIDE[k]); s.jUA[k] = (s16)s.findJoint(hvHash(b));
+            snprintf(b, sizeof(b), "lowerarm.%s", SIDE[k]); s.jLA[k] = (s16)s.findJoint(hvHash(b));
+            snprintf(b, sizeof(b), "upperleg.%s", SIDE[k]); s.jUL[k] = (s16)s.findJoint(hvHash(b));
+            snprintf(b, sizeof(b), "lowerleg.%s", SIDE[k]); s.jLL[k] = (s16)s.findJoint(hvHash(b));
+            snprintf(b, sizeof(b), "foot.%s", SIDE[k]); s.jFoot[k] = (s16)s.findJoint(hvHash(b));
+        }
+        s.legLen = fabsf(s.restT[s.jLL[0]].y) * s.stretch[s.jUL[0]] + fabsf(s.restT[s.jFoot[0]].y) * s.stretch[s.jLL[0]] + 0.15f;
+    }
     if (found >= 8) {
         s.armL = (s16)s.findJoint(hvHash("upperarm.l"));
         s.armR = (s16)s.findJoint(hvHash("upperarm.r"));
@@ -181,6 +202,53 @@ void blend(Pose &a, const Pose &b, f32 w) {
     for (int j = 0; j < MAX_JOINTS; j++) {
         a.t[j] = lerp(a.t[j], b.t[j], w);
         a.r[j] = qnlerp(a.r[j], b.r[j], w);
+    }
+}
+
+// Apply a body-space rotation D (x right, y up, z forward) to joint j,
+// expressed relative to its parent's rest orientation.
+static inline void bodyRot(const Skeleton *s, Pose &p, int j, const Quat &D) {
+    if (j < 0) return;
+    int par = s->parent[j];
+    Quat pw = par >= 0 ? s->restWR[par] : Quat();
+    Quat pwInv(-pw.x, -pw.y, -pw.z, pw.w);
+    p.r[j] = qnormalize(pwInv * D * pw * s->restR[j]);
+}
+
+void locomotion(const Skeleton *s, Pose &p, f32 ph, f32 run, f32 act, f32 time, bool combat) {
+    if (!s->athletic) return;
+    const Vec3 X(1, 0, 0), Y(0, 1, 0), Z(0, 0, 1);
+    f32 sn = sinf(ph);
+    // torso: forward lean, counter-twist, breathing
+    f32 lean = (0.04f + 0.14f * run) * act + (combat ? 0.06f : 0.0f);
+    f32 breathe = 0.018f * sinf(time * 1.7f) * (1.0f - act);
+    bodyRot(s, p, s->jSpine, Quat::axisAngle(X, lean * 0.6f + breathe) * Quat::axisAngle(Y, 0.1f * sn * act));
+    bodyRot(s, p, s->jChest, Quat::axisAngle(X, lean * 0.4f + breathe) * Quat::axisAngle(Y, -0.22f * sn * act * (0.6f + run * 0.4f)));
+    bodyRot(s, p, s->jHead, Quat::axisAngle(X, -lean * 0.8f) * Quat::axisAngle(Y, 0.12f * sn * act));
+    // hips bob twice per cycle and settle lower when running
+    if (s->hips >= 0) {
+        f32 bob = (0.5f - 0.5f * cosf(2.0f * ph)) * act * (0.03f + 0.03f * run);
+        p.t[s->hips] = s->restT[s->hips] + Vec3(0, -bob * 0.6f - (combat ? 0.03f : 0.0f), 0);
+        bodyRot(s, p, s->hips, Quat::axisAngle(Y, -0.12f * sn * act));
+    }
+    // legs: swing, knee bend through the swing phase, flat feet
+    f32 A = (0.42f + 0.16f * run) * act;
+    for (int k = 0; k < 2; k++) {
+        f32 lp = ph + (k ? HV_PI : 0.0f);
+        f32 th = A * sinf(lp) + (combat && k ? 0.12f : 0.0f) - (combat && !k ? 0.12f : 0.0f);
+        f32 kn = (0.05f + (0.5f + 0.55f * run) * hvMax(0.0f, sinf(lp + 1.1f)) * hvMax(0.0f, cosf(lp) + 0.3f)) * act + (combat ? 0.18f : 0.0f) + 0.03f;
+        bodyRot(s, p, s->jUL[k], Quat::axisAngle(X, -th - (combat ? 0.08f : 0.0f)));
+        bodyRot(s, p, s->jLL[k], Quat::axisAngle(X, kn));
+        bodyRot(s, p, s->jFoot[k], Quat::axisAngle(X, th - kn * 0.8f));
+    }
+    // arms hang by the sides and swing against the legs; bent when running
+    for (int k = 0; k < 2; k++) {
+        f32 sgn = k ? 1.0f : -1.0f;      // left arm points +x, rotates down with -z
+        f32 down = 1.02f - 0.12f * run - (combat ? 0.15f : 0.0f) + 0.02f * sinf(time * 1.7f) * (1.0f - act);
+        f32 swing = -(0.32f + 0.3f * run) * act * sinf(ph + (k ? HV_PI : 0.0f));
+        f32 elbow = 0.18f + 1.1f * run * act + (combat ? 0.7f : 0.0f);
+        bodyRot(s, p, s->jUA[k], Quat::axisAngle(X, -swing) * Quat::axisAngle(Z, sgn * down));
+        bodyRot(s, p, s->jLA[k], Quat::axisAngle(Y, sgn * elbow));
     }
 }
 

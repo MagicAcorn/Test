@@ -37,6 +37,7 @@ struct Actor {
     f32 deadTimer = 0;
     // misc
     f32 squash = 0;        // slime hop phase
+    f32 gait = 0, locoW = 0, locoAct = 0;   // procedural locomotion state
     char chat[72] = {0};
     f32 chatTimer = 0;
     u16 npcId = 0;

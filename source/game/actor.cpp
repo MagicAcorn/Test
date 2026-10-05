@@ -91,6 +91,24 @@ void update(Actor &a, f32 dt, bool nearCamera) {
         if (nearCamera) {
             Pose pose;
             a.anim.evaluate(a.skel, pose);
+            if (a.skel->athletic) {
+                // idle / walk / run are procedural on athletic rigs: stride matched to speed
+                static const u32 LOCO[4] = {hvHash("anim/idle"), hvHash("anim/walk"), hvHash("anim/run"), hvHash("anim/idle_2h")};
+                u32 h = a.anim.cur ? a.anim.cur->hash : 0;
+                bool loco = a.grounded && (h == LOCO[0] || h == LOCO[1] || h == LOCO[2] || h == LOCO[3]);
+                a.locoW = hvApproach(a.locoW, loco ? 1.0f : 0.0f, dt * (loco ? 5.0f : 9.0f));
+                f32 v = a.vel.lenXZ() / hvMax(0.3f, a.scale);
+                a.locoAct = hvApproach(a.locoAct, hvSaturate(v / 1.6f), dt * 4.0f);
+                f32 run = hvSaturate((v - 3.0f) / 3.5f);
+                f32 stride = hvMax(0.5f, a.skel->legLen * (1.3f + 1.1f * run));
+                a.gait += dt * HV_TAU * hvMax(v, 0.0f) / (2.0f * stride);
+                if (a.gait > 1000.0f) a.gait -= 100.0f * HV_TAU;
+                if (a.locoW > 0.001f) {
+                    Pose lp = pose;
+                    anim::locomotion(a.skel, lp, a.gait, run, a.locoAct, a.squash, h == LOCO[3]);
+                    anim::blend(pose, lp, hvSmooth(a.locoW));
+                }
+            }
             anim::toModel(a.skel, pose, a.jm);
             anim::drawMatrices(a.model, a.skel, a.jm, a.dm);
             a.poseValid = true;

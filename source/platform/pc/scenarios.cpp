@@ -203,6 +203,8 @@ void scenarioTick() {
             }
         } else if (is("quests")) {
             questLogicTest();
+        } else if (is("walkside")) {
+            teleport(Vec3(140, 0, 250), 1.57f);
         } else if (is("lineup")) {
             teleport(Vec3(150, 0, 250), 1.57f);
             g.camDist = 5.5f;
@@ -271,6 +273,14 @@ void scenarioTick() {
     if (is("lineup")) {   // side-on camera to judge proportions
         g.player.yaw = 1.57f;
         g.camYaw = 0.0f;
+    }
+    if (is("walkside")) {   // walk then run past a fixed side-on camera
+        g.camYaw = 0.0f;
+        g.camDist = 4.2f;
+        g.camPitch = 0.1f;
+        f32 mag = f < 60 ? 0.0f : (f < 200 ? 0.45f : 1.0f);
+        g.pad.sx = -mag;   // camera-relative: walk along +x
+        g.pad.sy = 0;
     }
     if (is("jump")) {
         if (f == 30) g.pad.pressed |= BTN_A, g.pad.held |= BTN_A;
