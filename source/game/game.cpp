@@ -305,7 +305,12 @@ static void updateCamera(f32 dt, bool userControl) {
         else s_camKeep = hvMin(keep, s_camKeep + dt * 6.0f);
         if (s_camKeep < len) {
             // rise as we pull in, looking down over the obstacle instead of into the player
-            eye = tgt + d * (s_camKeep / len) + Vec3(0, hvMin((len - s_camKeep) * 0.18f, 1.4f), 0);
+            eye = tgt + d * (s_camKeep / len);
+            // a pulled-in camera keeps its pitch shallow so it looks along the
+            // street rather than down at the player's feet
+            f32 flat = hvSaturate((len - s_camKeep) / len);
+            f32 drop = (eye.y - tgt.y) * 0.45f * flat;
+            eye.y -= drop;
         }
     }
     f32 gy = g_world.groundHeight(eye.x, eye.z) + 0.8f;
@@ -736,8 +741,9 @@ void gameFrame() {
         updateRegion();
         updateMusic();
     }
-    for (auto &t : g.toasts)
-        if (t.timer > 0) t.timer -= dt;
+    if (g.mode != MODE_CRAFT)   // hidden over the forge: hold them for afterwards
+        for (auto &t : g.toasts)
+            if (t.timer > 0) t.timer -= dt;
     if (g.bannerTimer > 0) g.bannerTimer -= dt;
     if (g.regionTimer > 0) g.regionTimer -= dt;
     if (g.levelUpFlash > 0) g.levelUpFlash -= dt;

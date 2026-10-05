@@ -63,8 +63,9 @@ void init() {
     auto rnd = [&]() { s = s * 1664525u + 1013904223u; return (s >> 8) / 16777216.0f; };
     for (auto &c : g_clouds) {
         f32 a = rnd() * HV_TAU;
-        f32 r = 60 + rnd() * 170;
-        c.p = Vec3(192 + cosf(a) * r, 92 + rnd() * 40, 192 + sinf(a) * r);
+        // low and far, so they sit on the horizon in the normal play camera
+        f32 r = 130 + rnd() * 120;
+        c.p = Vec3(192 + cosf(a) * r, 46 + rnd() * 26, 192 + sinf(a) * r);
         c.yaw = rnd() * HV_TAU;
         c.big = rnd() < 0.6f;
         c.scale = (c.big ? 3.2f : 2.4f) * (0.8f + rnd() * 0.6f);   // hex clouds are pre-scaled x8

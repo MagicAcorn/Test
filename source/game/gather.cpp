@@ -254,10 +254,7 @@ static void resolve() {
             giveItem(gem, 1);
             quests::onGather(gem, 1);
         }
-        s_lucky = false;
-        char b[48];
-        snprintf(b, sizeof(b), "+%d %s", count, ITEMS[l.item].name);
-        fx::floatText(n.pos + Vec3(0, 2.2f, 0), b, ui::WHITE);
+        s_lucky = false;   // the item toast (with its icon) reports the haul
     } else {
         msg("Missed!");
         fx::floatText(n.pos + Vec3(0, 2.2f, 0), "Miss", ui::TEXT_DIM);
@@ -384,7 +381,7 @@ void drawUi() {
     f32 px = x + 4;
     px += ui::prompt(GL_A, px, py, SKILLS[d->skill].verb);
     px += ui::prompt(GL_B, px, py, "Leave");
-    ui::prompt(GL_R, x + 4, py + 30, "+ buttons: GP abilities");
+    ui::prompt(GL_R, x + 4, py + 30, "Hold: gathering skills");
     if (g.pad.held & BTN_R) {
         f32 ay = y - 112;
         ui::panel(x, ay, w, 104, ui::PANEL_DARK);
