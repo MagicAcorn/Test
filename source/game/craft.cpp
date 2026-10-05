@@ -137,7 +137,7 @@ void setupForge(int recipe) {
         s_broken[i] = false;
         s_flash[i] = 0;
     }
-    s_maxFocus = 24 + s_parts * 13 + skillLevel(s_skill) * 2 + toolTier(toolKindFor(s_skill)) * 6;
+    s_maxFocus = 30 + s_parts * 16 + skillLevel(s_skill) * 2 + toolTier(toolKindFor(s_skill)) * 6;   // just enough for a clean run
     s_focus = s_maxFocus;
     s_cur = 0;
     s_step = 0;
