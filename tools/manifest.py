@@ -164,8 +164,8 @@ def build_all(b, stages=None):
     struct.pack_into('>H', sk, 6, 1)   # flags: athletic proportions
     b.pak.add('skel/human', 'SKEL', bytes(sk))
     for name, spec in humangen.PEOPLE.items():
-        parts = humangen.build_person(rig, spec)
-        skin = dict(num_joints=len(rig.names), envelopes=[], skel_hash=fnv1a('skel/human'))
+        parts, envs = humangen.build_person(rig, spec)
+        skin = dict(num_joints=len(rig.names), envelopes=envs, skel_hash=fnv1a('skel/human'))
         st = b.add_model(name, parts, skin)
         print('  %-18s tris %5d batches %3d' % (name, st['tris'], st['batches']))
     from skelanim import Rig

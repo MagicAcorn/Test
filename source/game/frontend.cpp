@@ -98,7 +98,7 @@ void createUpdate(f32 dt) {
     s_preview.pos = stage;
     s_preview.yaw += dt * 0.6f;
     actors::update(s_preview, dt, true);
-    g.cam.eye = stage + Vec3(-1.0f, 1.7f, 4.0f);
+    g.cam.eye = stage + Vec3(-0.9f, 1.75f, 3.6f);
     g.cam.target = stage + Vec3(-1.25f, 1.15f, 0);
     if (pad.pressed & BTN_UP) { s_row = (s_row + 3) % 4; audio::sfx(SFX_UI_MOVE); }
     if (pad.pressed & BTN_DOWN) { s_row = (s_row + 1) % 4; audio::sfx(SFX_UI_MOVE); }
