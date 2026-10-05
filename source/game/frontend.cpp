@@ -93,13 +93,13 @@ void titleDraw() {
 void createUpdate(f32 dt) {
     PadState &pad = g.pad;
     // preview stage in front of the hearth
-    Vec3 stage(200, 0, 207);
+    Vec3 stage(196, 0, 220);   // a quiet corner of the square, clear of NPCs
     stage.y = g_world.groundHeight(stage.x, stage.z);
     s_preview.pos = stage;
     s_preview.yaw += dt * 0.6f;
     actors::update(s_preview, dt, true);
-    g.cam.eye = stage + Vec3(0, 2.2f, 6.5f);
-    g.cam.target = stage + Vec3(0.55f, 1.15f, 0);
+    g.cam.eye = stage + Vec3(-1.2f, 1.9f, 5.2f);
+    g.cam.target = stage + Vec3(-1.6f, 1.05f, 0);
     if (pad.pressed & BTN_UP) { s_row = (s_row + 3) % 4; audio::sfx(SFX_UI_MOVE); }
     if (pad.pressed & BTN_DOWN) { s_row = (s_row + 1) % 4; audio::sfx(SFX_UI_MOVE); }
     int d = (pad.pressed & BTN_RIGHT) ? 1 : ((pad.pressed & BTN_LEFT) ? -1 : 0);

@@ -192,6 +192,8 @@ void scenarioTick() {
                 }
         } else if (is("bridgewalk")) {
             teleport(Vec3(226, 0, 136), 1.57f);
+        } else if (is("bridgewalk2")) {
+            teleport(Vec3(266, 0, 198), -1.57f);
         } else if (is("probe2")) {
             for (int i = 0; i < g_world.numObjects(); i++) {
                 const WorldObject &o = g_world.object(i);
@@ -201,6 +203,10 @@ void scenarioTick() {
             }
         } else if (is("quests")) {
             questLogicTest();
+        } else if (is("lineup")) {
+            teleport(Vec3(150, 0, 250), 1.57f);
+            g.camDist = 5.5f;
+            g.camPitch = 0.12f;
         } else if (is("jump")) {
             teleport(Vec3(196, 0, 214), 3.14f);
         } else if (is("bridge")) {
@@ -228,9 +234,9 @@ void scenarioTick() {
             g.camDist = 13;
         }
     }
-    if (is("bridgewalk") && f > 3) {
+    if ((is("bridgewalk") || is("bridgewalk2")) && f > 3) {
         Vec3 fwd(sinf(g.camYaw), 0, cosf(g.camYaw)), right(-cosf(g.camYaw), 0, sinf(g.camYaw));
-        Vec3 d(1, 0, 0);
+        Vec3 d(is("bridgewalk2") ? -1.0f : 1.0f, 0, 0);
         g.pad.sy = dot(d, fwd);
         g.pad.sx = dot(d, right);
         if (f % 20 == 0) printf("[walk] f %d pos %.2f %.2f %.2f ground %.2f\n", f, g.player.pos.x, g.player.pos.y, g.player.pos.z,
@@ -261,6 +267,10 @@ void scenarioTick() {
             g.pad.sx = 0.8f;
             g.pad.sy = 0.5f;
         }
+    }
+    if (is("lineup")) {   // side-on camera to judge proportions
+        g.player.yaw = 1.57f;
+        g.camYaw = 0.0f;
     }
     if (is("jump")) {
         if (f == 30) g.pad.pressed |= BTN_A, g.pad.held |= BTN_A;

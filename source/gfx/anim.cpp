@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <math.h>
 #include "gfx/anim.h"
 #include "core/pak.h"
 
@@ -45,6 +47,40 @@ const Skeleton *skeleton(u32 hash) {
     const u8 *ib = d + 8 + rdU16(d + 4) * 48;
     for (int i = 0; i < s.numJoints; i++) s.invBind[i] = readMat34(ib + i * 48);
     s.rootParent = readMat34(ib + rdU16(d + 4) * 48);
+    // athletic proportions for the KayKit humanoid rig: longer legs and arms,
+    // a slightly longer torso and a smaller head
+    for (int i = 0; i < MAX_JOINTS; i++) s.stretch[i] = s.uscale[i] = 1.0f;
+    s.hips = -1;
+    s.hipLift = 0;
+    struct Tweak {
+        const char *name;
+        f32 stretch, scale;
+    };
+    static const Tweak TW[] = {
+        {"upperleg.l", 1.34f, 1}, {"upperleg.r", 1.34f, 1}, {"lowerleg.l", 1.34f, 1}, {"lowerleg.r", 1.34f, 1},
+        {"upperarm.l", 1.2f, 1},  {"upperarm.r", 1.2f, 1},  {"lowerarm.l", 1.2f, 1},  {"lowerarm.r", 1.2f, 1},
+        {"spine", 1.14f, 1},      {"chest", 1.08f, 1},      {"head", 1.0f, 0.74f},
+    };
+    int found = 0;
+#ifdef HV_PC
+    if (getenv("HV_NOSHAPE")) found = -100;   // harness: compare against the original proportions
+#endif
+    for (const Tweak &t : TW) {
+        int j = s.findJoint(hvHash(t.name));
+        if (j < 0) continue;
+        s.stretch[j] = t.stretch;
+        s.uscale[j] = t.scale;
+        found++;
+    }
+    s.hips = (s16)s.findJoint(hvHash("hips"));
+    if (found >= 8 && s.hips >= 0) {
+        // raise the hips by however much longer the left leg became
+        int ul = s.findJoint(hvHash("upperleg.l")), ll = s.findJoint(hvHash("lowerleg.l")), ft = s.findJoint(hvHash("foot.l"));
+        if (ul >= 0 && ll >= 0 && ft >= 0)
+            s.hipLift = (s.stretch[ul] - 1.0f) * fabsf(s.restT[ll].y) + (s.stretch[ll] - 1.0f) * fabsf(s.restT[ft].y);
+    } else {
+        for (int i = 0; i < MAX_JOINTS; i++) s.stretch[i] = s.uscale[i] = 1.0f;
+    }
     return &s;
 }
 
@@ -141,10 +177,20 @@ void blend(Pose &a, const Pose &b, f32 w) {
 }
 
 void toModel(const Skeleton *s, const Pose &p, Mat34 *jm) {
+    // base[] is the shear-free hierarchy; a bone's stretch only scales its own
+    // vertices (jm) and pushes its children further along the bone axis
+    static Mat34 base[MAX_JOINTS];
     for (int j = 0; j < s->numJoints; j++) {
-        Mat34 local = Mat34::trs(p.t[j], p.r[j], s->restS[j]);
         int par = s->parent[j];
-        jm[j] = (par >= 0) ? jm[par] * local : s->rootParent * local;
+        Vec3 t = p.t[j];
+        if (par >= 0) t.y *= s->stretch[par];
+        if (j == s->hips) t.y += s->hipLift;
+        Mat34 local = Mat34::trs(t, p.r[j], s->restS[j] * s->uscale[j]);
+        base[j] = (par >= 0) ? base[par] * local : s->rootParent * local;
+        jm[j] = base[j];
+        if (s->stretch[j] != 1.0f) {
+            for (int r = 0; r < 3; r++) jm[j].m[r][1] *= s->stretch[j];
+        }
     }
 }
 

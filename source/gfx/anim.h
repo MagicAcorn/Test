@@ -15,6 +15,12 @@ struct Skeleton {
     Vec3 restS[MAX_JOINTS];
     Mat34 invBind[MAX_JOINTS];
     Mat34 rootParent;
+    // Proportion tweaks applied at pose time (leaner, more athletic humanoids):
+    // stretch lengthens a bone along its axis, headScale shrinks the head.
+    f32 stretch[MAX_JOINTS];
+    f32 uscale[MAX_JOINTS];
+    s16 hips;
+    f32 hipLift;
     int findJoint(u32 nameHash) const;
 };
 
